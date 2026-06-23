@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RGB O-1 Color Picker</title>
+
+<style>
+*{
+    box-sizing:border-box;
+    font-family:Arial, Helvetica, sans-serif;
+}
+
+body{
+    background:#ececec;
+    display:flex;
+    justify-content:center;
+    padding:20px;
+}
+
+.container{
+    width:625px;
+}
+
+
+h1{
+    text-align:center;
+    margin-bottom:25px;
+}
+
+.top{
+    display:flex;
+    gap:20px;
+    margin-bottom:20px;
+}
+
+.preview{
+    width:70px;
+    height:70px;
+    border:1px solid #aaa;
+    background:
+        linear-gradient(45deg,#ddd 25%,transparent 25%),
+        linear-gradient(-45deg,#ddd 25%,transparent 25%),
+        linear-gradient(45deg,transparent 75%,#ddd 75%),
+        linear-gradient(-45deg,transparent 75%,#ddd 75%);
+    background-size:20px 20px;
+    background-position:0 0,0 10px,10px -10px,-10px 0px;
+    position:relative;
+}
+
+.previewColor{
+    position:absolute;
+    inset:0;
+}
+
+.inputs{
+    flex:1;
+}
+
+.valueRow{
+    display:flex;
+    gap:10px;
+    margin-bottom:8px;
+}
+
+.valueRow input{
+    height:28px;
+    font-size:16px;
+    padding:2px 8px;
+}
+
+.copyBtn{
+    width:42px;
+    cursor:pointer;
+}
+
+.control{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:8px 0;
+}
+
+.control label{
+    width:16px;
+    font-size:16px;
+}
+
+.control input[type=number]{
+    width:55px;
+    height:26px;
+    font-size:14px;
+}
+
+.control input[type=range]{
+    flex:1;
+    height:18px;
+}
+
+.colorArea{
+    position:relative;
+    width:100%;
+    height:360px;
+    margin-top:15px;
+    border-radius:4px;
+    overflow:hidden;
+    cursor:crosshair;
+}
+
+.satLayer{
+    position:absolute;
+    inset:0;
+}
+
+.whiteGradient{
+    position:absolute;
+    inset:0;
+    background:linear-gradient(to right,#fff,transparent);
+}
+
+.blackGradient{
+    position:absolute;
+    inset:0;
+    background:linear-gradient(to top,#000,transparent);
+}
+
+.picker{
+    position:absolute;
+    width:18px;
+    height:18px;
+    border:2px solid white;
+    border-radius:50%;
+    box-shadow:0 0 4px black;
+    transform:translate(-50%,-50%);
+}
+
+
+.alphaSlider{
+    width:100%;
+    height:35px;
+    margin-top:12px;
+    cursor:pointer;
+}
+
+.hueSlider{
+    width:100%;
+    height:35px;
+    margin-top:12px;
+    cursor:pointer;
+    appearance:none;
+    border-radius:4px;
+    background:linear-gradient(
+        to right,
+        #ff0000 0%,
+        #ffff00 17%,
+        #00ff00 33%,
+        #00ffff 50%,
+        #0000ff 67%,
+        #ff00ff 83%,
+        #ff0000 100%
+    );
+}
+
+.hexAlphaBG{
+    background:
+        linear-gradient(45deg,#ddd 25%,transparent 25%),
+        linear-gradient(-45deg,#ddd 25%,transparent 25%),
+        linear-gradient(45deg,transparent 75%,#ddd 75%),
+        linear-gradient(-45deg,transparent 75%,#ddd 75%);
+    background-size:20px 20px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="top">
+
+        <div class="preview">
+            <div class="previewColor" id="preview"></div>
+        </div>
+
+        <div class="inputs">
+
+            <div class="valueRow">
+                <button class="copyBtn" onclick="copyRGBA()">📋</button>
+                <input id="rgbaText">
+            </div>
+
+            <div class="valueRow">
+                <button class="copyBtn" onclick="copyHEX()">📋</button>
+                <input id="hexText">
+            </div>
+
+        </div>
+    </div>
+
+    <div class="control">
+        <label>R</label>
+        <input type="number" id="r" min="0" max="255">
+        <input type="range" id="rRange" min="0" max="255">
+    </div>
+
+    <div class="control">
+        <label>G</label>
+        <input type="number" id="g" min="0" max="255">
+        <input type="range" id="gRange" min="0" max="255">
+    </div>
+
+    <div class="control">
+        <label>B</label>
+        <input type="number" id="b" min="0" max="255">
+        <input type="range" id="bRange" min="0" max="255">
+    </div>
+
+    <div class="control">
+        <label>A</label>
+        <input type="number" id="a" min="0" max="1" step="0.01">
+        <input type="range" id="aRange" min="0" max="1" step="0.01">
+    </div>
+
+    <div class="colorArea" id="colorArea">
+        <div class="satLayer" id="satLayer"></div>
+        <div class="whiteGradient"></div>
+        <div class="blackGradient"></div>
+        <div class="picker" id="picker"></div>
+    </div>
+
+    <input type="range" min="0" max="360" value="30"
+           class="hueSlider"
+           id="hue">
+
+    <div class="hexAlphaBG">
+        <input type="range" min="0" max="1" step="0.01"
+               class="alphaSlider"
+               id="alpha">
+    </div>
+
+</div>
+
+<script>
+
+let hue = 30;
+let sat = 100;
+let val = 100;
+let alpha = 1;
+
+const colorArea = document.getElementById('colorArea');
+const satLayer = document.getElementById('satLayer');
+const picker = document.getElementById('picker');
+
+function hsvToRgb(h,s,v){
+
+    let c = v*s;
+    let x = c*(1-Math.abs((h/60)%2-1));
+    let m = v-c;
+
+    let r=0,g=0,b=0;
+
+    if(h<60){r=c;g=x;}
+    else if(h<120){r=x;g=c;}
+    else if(h<180){g=c;b=x;}
+    else if(h<240){g=x;b=c;}
+    else if(h<300){r=x;b=c;}
+    else {r=c;b=x;}
+
+    return {
+        r:Math.round((r+m)*255),
+        g:Math.round((g+m)*255),
+        b:Math.round((b+m)*255)
+    };
+}
+
+function rgbToHex(r,g,b,a){
+
+    const hex =
+        [r,g,b,Math.round(a*255)]
+        .map(v=>v.toString(16).padStart(2,'0'))
+        .join('');
+
+    return "#" + hex;
+}
+
+function updateUI(){
+
+    satLayer.style.background =
+        `hsl(${hue},100%,50%)`;
+
+    const rgb = hsvToRgb(
+        hue,
+        sat/100,
+        val/100
+    );
+
+    document.getElementById('r').value = rgb.r;
+    document.getElementById('g').value = rgb.g;
+    document.getElementById('b').value = rgb.b;
+
+    document.getElementById('rRange').value = rgb.r;
+    document.getElementById('gRange').value = rgb.g;
+    document.getElementById('bRange').value = rgb.b;
+
+    document.getElementById('a').value = alpha;
+    document.getElementById('aRange').value = alpha;
+
+	const rgbaCss =
+		`rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+
+	const rgbaDisplay = `rgba(${(rgb.r/255).toFixed(3)},${(rgb.g/255).toFixed(3)},${(rgb.b/255).toFixed(3)},${alpha.toFixed(3)})`;
+
+	document.getElementById('preview').style.background = rgbaCss;
+	document.getElementById('rgbaText').value = rgbaDisplay;
+    document.getElementById('hexText').value =
+        rgbToHex(rgb.r,rgb.g,rgb.b,alpha);
+
+}
+
+function updateFromRGB() {
+
+    const r = Number(document.getElementById("r").value);
+    const g = Number(document.getElementById("g").value);
+    const b = Number(document.getElementById("b").value);
+
+    document.getElementById("rRange").value = r;
+    document.getElementById("gRange").value = g;
+    document.getElementById("bRange").value = b;
+
+    const rgba = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+
+    document.getElementById("preview").style.background = rgba;
+    document.getElementById("rgbaText").value = rgba;
+    document.getElementById("hexText").value = rgbToHex(r,g,b,alpha);
+}
+
+["r","g","b"].forEach(id => {
+
+    const num = document.getElementById(id);
+    const range = document.getElementById(id + "Range");
+
+    num.addEventListener("input", () => {
+        range.value = num.value;
+        updateFromRGB();
+    });
+
+    range.addEventListener("input", () => {
+        num.value = range.value;
+        updateFromRGB();
+    });
+
+});
+
+function setPicker(x,y){
+
+    const rect =
+        colorArea.getBoundingClientRect();
+
+    x = Math.max(0,Math.min(x,rect.width));
+    y = Math.max(0,Math.min(y,rect.height));
+
+    sat = (x/rect.width)*100;
+    val = 100 - (y/rect.height)*100;
+
+    picker.style.left = x + "px";
+    picker.style.top = y + "px";
+
+    updateUI();
+}
+
+let dragging = false;
+
+colorArea.addEventListener("mousedown",e=>{
+    dragging = true;
+
+    const rect =
+        colorArea.getBoundingClientRect();
+
+    setPicker(
+        e.clientX - rect.left,
+        e.clientY - rect.top
+    );
+});
+
+window.addEventListener("mousemove",e=>{
+
+    if(!dragging) return;
+
+    const rect =
+        colorArea.getBoundingClientRect();
+
+    setPicker(
+        e.clientX - rect.left,
+        e.clientY - rect.top
+    );
+});
+
+window.addEventListener("mouseup",()=>{
+    dragging=false;
+});
+
+document.getElementById("hue")
+.addEventListener("input",e=>{
+    hue = Number(e.target.value);
+    updateUI();
+});
+
+document.getElementById("alpha")
+.addEventListener("input",e=>{
+    alpha = Number(e.target.value);
+
+    document.getElementById("a").value = alpha;
+    document.getElementById("aRange").value = alpha;
+
+    updateUI();
+});
+
+document.getElementById("aRange")
+.addEventListener("input",e=>{
+    alpha = Number(e.target.value);
+    document.getElementById("alpha").value = alpha;
+    updateUI();
+});
+
+document.getElementById("a")
+.addEventListener("input",e=>{
+    alpha = Number(e.target.value);
+    document.getElementById("alpha").value = alpha;
+    document.getElementById("aRange").value = alpha;
+    updateUI();
+});
+
+function copyRGBA(){
+    navigator.clipboard.writeText(
+        document.getElementById("rgbaText").value
+    );
+}
+
+function copyHEX(){
+    navigator.clipboard.writeText(
+        document.getElementById("hexText").value
+    );
+}
+
+setPicker(300,0);
+updateUI();
+
+</script>
+
+</body>
+</html>
