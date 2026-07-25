@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>VR Night Vision Split-Screen</title>
+    <title>LiveCam Split-Screen</title>
     <style>
         * {
             box-sizing: border-box;
@@ -92,17 +92,25 @@
     <video id="video-source" autoplay playsinline muted></video>
 
     <!-- WebGL Shaders -->
-<!-- Updated WebGL Vertex Shader (Flips Y coordinate) -->
-    <script id="vs" type="x-shader/x-vertex">
-        attribute vec2 a_position;
-        attribute vec2 a_texCoord;
-        varying vec2 v_texCoord;
-        void main() {
-            gl_Position = vec4(a_position, 0.0, 1.0);
-            // Flip the Y coordinate here to correct upside-down camera streams
-            v_texCoord = vec2(a_texCoord.x, a_texCoord.y);
-        }
-    </script>
+	<script id="vs" type="x-shader/x-vertex">
+		attribute vec2 a_position;
+		attribute vec2 a_texCoord;
+		varying vec2 v_texCoord;
+		
+		uniform int u_isLandscape;
+
+		void main() {
+			gl_Position = vec4(a_position, 0.0, 1.0);
+			
+			if (u_isLandscape == 1) {
+				// In landscape mode, rotate/swap and adjust coordinates to match sensor layout
+				v_texCoord = vec2(a_texCoord.y, 1.0 - a_texCoord.x);
+			} else {
+				// Portrait mode mapping
+				v_texCoord = vec2(a_texCoord.x, a_texCoord.y);
+			}
+		}
+	</script>
 
     <script id="fs" type="x-shader/x-fragment">
         precision mediump float;
@@ -341,6 +349,13 @@
             gl.enableVertexAttribArray(buffers.texCoordLocation);
             gl.bindBuffer(gl.ARRAY_BUFFER, buffers.texCoordBuffer);
             gl.vertexAttribPointer(buffers.texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+			
+			// --- DETERMINE LANDSCAPE ---
+			// True if window width is greater than height
+			const isLandscape = window.innerWidth > window.innerHeight ? 1 : 0;
+			const isLandscapeLocation = gl.getUniformLocation(program, "u_isLandscape");
+			gl.uniform1i(isLandscapeLocation, isLandscape);
+			// ---------------------------
 
             // Set uniforms
             const filterTypeLocation = gl.getUniformLocation(program, "u_filterType");
@@ -370,6 +385,16 @@
 
 		//window.addEventListener('resize', updateTextureCoordinates);
         window.addEventListener('load', initCamera);
+		
+window.addEventListener('resize', () => {
+    // Triggered automatically on mobile orientation change
+    if (canvasLeft && canvasRight) {
+        canvasLeft.width = canvasLeft.clientWidth;
+        canvasLeft.height = canvasLeft.clientHeight;
+        canvasRight.width = canvasRight.clientWidth;
+        canvasRight.height = canvasRight.clientHeight;
+    }
+});
     </script>
 </body>
 </html>
