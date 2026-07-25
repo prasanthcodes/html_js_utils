@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>VR Night Vision Split-Screen</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            font-family: sans-serif;
+            color: #fff;
+        }
+        #container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+        .viewport {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            border-right: 2px solid #222;
+        }
+        .viewport:last-child {
+            border-right: none;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+        }
+        #ui-overlay {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 12px;
+            border-radius: 8px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            pointer-events: auto;
+        }
+        select {
+            background: #222;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        #video-source {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-overlay">
+        <label for="filterSelect">Filter:</label>
+        <select id="filterSelect">
+            <option value="0">Normal / Standard</option>
+            <option value="1">Gamma Correction (Brighten)</option>
+            <option value="2">Simplified CLAHE / HE Simulation</option>
+            <option value="3">Single-Scale Retinex (SSR)</option>
+            <option value="4">Homomorphic Filter Simulation</option>
+            <option value="5">Glare reduction</option>
+        </select>
+    </div>
+
+    <div id="container">
+        <div class="viewport">
+            <canvas id="canvasLeft"></canvas>
+        </div>
+        <div class="viewport">
+            <canvas id="canvasRight"></canvas>
+        </div>
+    </div>
+
+    <video id="video-source" autoplay playsinline muted></video>
+
+    <!-- WebGL Shaders -->
+<!-- Updated WebGL Vertex Shader (Flips Y coordinate) -->
+    <script id="vs" type="x-shader/x-vertex">
+        attribute vec2 a_position;
+        attribute vec2 a_texCoord;
+        varying vec2 v_texCoord;
+        void main() {
+            gl_Position = vec4(a_position, 0.0, 1.0);
+            // Flip the Y coordinate here to correct upside-down camera streams
+            v_texCoord = vec2(a_texCoord.x, 1.0 - a_texCoord.y);
+        }
+    </script>
+
+    <script id="fs" type="x-shader/x-fragment">
+        precision mediump float;
+        varying vec2 v_texCoord;
+        uniform sampler2D u_image;
+        uniform int u_filterType;
+        uniform vec2 u_resolution;
+
+        // RGB to YUV/Luminance helpers
+        float getLuma(vec3 c) {
+            return dot(c, vec3(0.299, 0.587, 0.114));
+        }
+
+        void main() {
+            vec4 color = texture2D(u_image, v_texCoord);
+            vec3 col = color.rgb;
+
+            if (u_filterType == 1) {
+                // Gamma Correction (Gamma < 1 brightens shadows)
+                float gamma = 0.45;
+                col = pow(col, vec3(gamma));
+                // Slight green night-vision tint boost
+                //col.g *= 1.2;
+            } 
+            else if (u_filterType == 2) {
+                // Adaptive Contrast / HE Simulation via local deviation stretching
+                float luma = getLuma(col);
+                float enhancedLuma = (luma - 0.2) * 1.8; // stretch dynamic range
+                enhancedLuma = clamp(enhancedLuma, 0.0, 1.0);
+                // Apply monochromatic look
+                //col = vec3(1.0, 1.0, 1.0) * enhancedLuma;
+				// Preserve original color while applying the enhanced contrast/luma
+                // Safe division by zero prevention for pure black
+                float safeLuma = max(luma, 0.0001);
+                col = col * (enhancedLuma / safeLuma);
+            } 
+            else if (u_filterType == 3) {
+                // Retinex-inspired approximation: Logarithmic color separation
+                vec3 illum = vec3(0.3) + col * 0.7; // low-pass approximation
+                vec3 reflectance = log(col + 0.01) - log(illum + 0.01);
+                col = exp(reflectance * 1.5);
+                col = clamp(col * 1.5, 0.0, 1.0);
+            } 
+            else if (u_filterType == 4) {
+                // Homomorphic Filtering simulation (Boost shadows, tone down highlights)
+                float luma = getLuma(col);
+                float homom = log(1.0 + luma);
+                homom = smoothstep(0.0, 0.8, homom) * 1.6;
+                col = mix(col, vec3(homom), 0.7);
+                col.r *= 0.8; col.g *= 1.4; col.b *= 0.8; // Night vision tint
+            }
+			else if (u_filterType == 5) {
+                // Glare Suppression for Night Images
+                float luma = getLuma(col);
+                
+                // Define a threshold where intense glare begins (e.g., bright highlights)
+                float threshold = 0.7;
+                
+                if (luma > threshold) {
+                    // Isolate the excess glare intensity above the threshold
+                    float excess = luma - threshold;
+                    
+                    // Apply a soft-knee compression curve to squash the blown-out highlights
+                    float compressedLuma = threshold + (excess / (1.0 + excess * 2.0));
+                    
+                    // Scale back color channels smoothly based on the new reduced luma ratio
+                    float safeLuma = max(luma, 0.0001);
+                    col = col * (compressedLuma / safeLuma);
+                }
+                
+                // Optional: Slightly boost dark shadow details to recover surroundings blinded by glare
+                col = mix(col, sqrt(col), 0.2);
+            }
+			
+
+            gl_FragColor = vec4(col, color.a);
+        }
+    </script>
+
+    <script>
+        const video = document.getElementById('video-source');
+        const filterSelect = document.getElementById('filterSelect');
+        
+        const canvasLeft = document.getElementById('canvasLeft');
+        const canvasRight = document.getElementById('canvasRight');
+
+        let glLeft, glRight;
+        let programLeft, programRight;
+        let textureLeft, textureRight;
+
+        // Initialize camera stream
+        async function initCamera() {
+            try {
+                const constraints = {
+                    audio: false,
+                    video: {
+                        facingMode: { ideal: "environment" },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                await video.play();
+                initWebGL();
+                requestAnimationFrame(render);
+            } catch (err) {
+                alert("Camera access denied or unavailable: " + err.message);
+            }
+        }
+
+        function createGLContext(canvas) {
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!gl) {
+                alert('WebGL 1.0 not supported!');
+                return null;
+            }
+            return gl;
+        }
+
+        function createShaderProgram(gl) {
+            const vsSource = document.getElementById('vs').text;
+            const fsSource = document.getElementById('fs').text;
+
+            const vs = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vs, vsSource);
+            gl.compileShader(vs);
+
+            const fs = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fs, fsSource);
+            gl.compileShader(fs);
+
+            const program = gl.createProgram();
+            gl.attachShader(program, vs);
+            gl.attachShader(program, fs);
+            gl.linkProgram(program);
+
+            return program;
+        }
+
+        function setupBuffers(gl, program) {
+            const positionLocation = gl.getAttribLocation(program, "a_position");
+            const texCoordLocation = gl.getAttribLocation(program, "a_texCoord");
+
+            // Rectangle covering viewport vertices
+            const positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+                -1, -1,  1, -1, -1,  1,
+                -1,  1,  1, -1,  1,  1,
+            ]), gl.STATIC_DRAW);
+
+            const texCoordBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+            // Flip Y coordinates for video texture alignment
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+                0, 1,  1, 1,  0, 0,
+                0, 0,  1, 1,  1, 0,
+            ]), gl.STATIC_DRAW);
+
+            return { positionLocation, texCoordLocation, positionBuffer, texCoordBuffer };
+        }
+
+        function createTexture(gl) {
+            const texture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            return texture;
+        }
+
+        function initWebGL() {
+            glLeft = createGLContext(canvasLeft);
+            glRight = createGLContext(canvasRight);
+
+            programLeft = createShaderProgram(glLeft);
+            programRight = createShaderProgram(glRight);
+
+            window.buffersLeft = setupBuffers(glLeft, programLeft);
+            window.buffersRight = setupBuffers(glRight, programRight);
+
+            textureLeft = createTexture(glLeft);
+            textureRight = createTexture(glRight);
+        }
+
+        function updateTexture(gl, texture) {
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+        }
+
+        function renderCanvas(gl, program, buffers, texture, width, height) {
+            if (!gl || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+            gl.viewport(0, 0, width, height);
+            gl.useProgram(program);
+
+            updateTexture(gl, texture);
+
+            gl.enableVertexAttribArray(buffers.positionLocation);
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffers.positionBuffer);
+            gl.vertexAttribPointer(buffers.positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+            gl.enableVertexAttribArray(buffers.texCoordLocation);
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffers.texCoordBuffer);
+            gl.vertexAttribPointer(buffers.texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+
+            // Set uniforms
+            const filterTypeLocation = gl.getUniformLocation(program, "u_filterType");
+            gl.uniform1i(filterTypeLocation, parseInt(filterSelect.value));
+
+            const resolutionLocation = gl.getUniformLocation(program, "u_resolution");
+            gl.uniform2f(resolutionLocation, width, height);
+
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+        }
+
+        function render() {
+            // Match canvas drawing buffer sizes to actual element dimensions
+            if (canvasLeft.width !== canvasLeft.clientWidth || canvasLeft.height !== canvasLeft.clientHeight) {
+                canvasLeft.width = canvasLeft.clientWidth;
+                canvasLeft.height = canvasLeft.clientHeight;
+                canvasRight.width = canvasRight.clientWidth;
+                canvasRight.height = canvasRight.clientHeight;
+            }
+
+            renderCanvas(glLeft, programLeft, window.buffersLeft, textureLeft, canvasLeft.width, canvasLeft.height);
+            renderCanvas(glRight, programRight, window.buffersRight, textureRight, canvasRight.width, canvasRight.height);
+
+            requestAnimationFrame(render);
+        }
+
+        window.addEventListener('load', initCamera);
+    </script>
+</body>
+</html>
