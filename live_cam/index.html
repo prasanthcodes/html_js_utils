@@ -98,15 +98,20 @@
 		varying vec2 v_texCoord;
 		
 		uniform int u_isLandscape;
+		uniform int isPhonesite;
 
 		void main() {
 			gl_Position = vec4(a_position, 0.0, 1.0);
 			
 			// For standard desktop PC webcams, keep standard mapping unless forced
             if (u_isLandscape == 1) {
-                v_texCoord = vec2(1.0 - a_texCoord.x, a_texCoord.y);
+				if (isPhonesite == 1) {
+					v_texCoord = vec2(a_texCoord.y, 1.0 - a_texCoord.x);
+				} else {
+					v_texCoord = vec2(1.0 - a_texCoord.x, a_texCoord.y);
+				}
             } else {
-                v_texCoord = vec2(a_texCoord.y, 1.0 - a_texCoord.x);
+                v_texCoord = vec2(a_texCoord.x, a_texCoord.y);
             }
 		}
 	</script>
@@ -348,6 +353,15 @@
             gl.enableVertexAttribArray(buffers.texCoordLocation);
             gl.bindBuffer(gl.ARRAY_BUFFER, buffers.texCoordBuffer);
             gl.vertexAttribPointer(buffers.texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+			
+			// --- SET PHONESITE VAR ---
+			var phonesite_flag=0;
+			if (/Mobile|Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent)) {
+				isPhonesite=1;
+			}
+			const isPhonesiteLocation = gl.getUniformLocation(program, "isPhonesite");
+			gl.uniform1i(isPhonesiteLocation, isPhonesite);
+			// ---------------------------
 			
 			// --- DETERMINE LANDSCAPE ---
 			// True if window width is greater than height
