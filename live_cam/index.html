@@ -355,12 +355,12 @@
             gl.vertexAttribPointer(buffers.texCoordLocation, 2, gl.FLOAT, false, 0, 0);
 			
 			// --- SET PHONESITE VAR ---
-			var isPhonesite=0;
+			var isPhonesite_flag=0;
 			if (/Mobile|Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent)) {
-				isPhonesite=1;
+				isPhonesite_flag=1;
 			}
 			const isPhonesiteLocation = gl.getUniformLocation(program, "isPhonesite");
-			gl.uniform1i(isPhonesiteLocation, isPhonesite);
+			gl.uniform1i(isPhonesiteLocation, isPhonesite_flag);
 			// ---------------------------
 			
 			// --- DETERMINE LANDSCAPE ---
