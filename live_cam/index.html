@@ -102,13 +102,12 @@
 		void main() {
 			gl_Position = vec4(a_position, 0.0, 1.0);
 			
-			if (u_isLandscape == 1) {
-				// In landscape mode, rotate/swap and adjust coordinates to match sensor layout
-				v_texCoord = vec2(a_texCoord.y, 1.0 - a_texCoord.x);
-			} else {
-				// Portrait mode mapping
-				v_texCoord = vec2(a_texCoord.x, a_texCoord.y);
-			}
+			// For standard desktop PC webcams, keep standard mapping unless forced
+            if (u_isLandscape == 1) {
+                v_texCoord = vec2(1.0 - a_texCoord.x, a_texCoord.y);
+            } else {
+                v_texCoord = vec2(a_texCoord.y, 1.0 - a_texCoord.x);
+            }
 		}
 	</script>
 

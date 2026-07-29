@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TS to CSV Converter</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #f9fafb;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            color: var(--primary);
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.875rem;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        textarea:focus, input[type="file"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .file-dropzone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            background: #fafafa;
+            cursor: pointer;
+            margin-bottom: 1.25rem;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+
+        .file-dropzone:hover {
+            border-color: var(--primary);
+        }
+
+        .btn-container {
+            display: flex;
+            gap: 1rem;
+        }
+
+        button {
+            flex: 1;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button.secondary {
+            background-color: #6b7280;
+        }
+
+        button.secondary:hover {
+            background-color: #4b5563;
+        }
+
+        .preview-container {
+            margin-top: 1.5rem;
+            display: none;
+        }
+
+        .preview-container.active {
+            display: block;
+        }
+
+        pre {
+            background: #f3f4f6;
+            padding: 1rem;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow: auto;
+            font-size: 0.8rem;
+            margin: 0;
+        }
+
+        #fileNameDisplay {
+            font-size: 0.8rem;
+            color: #4f46e5;
+            margin-top: 0.4rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>TS to CSV Converter</h1>
+        
+        <div class="input-group">
+            <label for="tsInput">Paste TS Data (Tab-Separated or Text Data):</label>
+            <textarea id="tsInput" placeholder="Paste your TS data here... (e.g., Column1\tColumn2\nValue1\tValue2)"></textarea>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 1rem; font-size: 0.875rem; color: #6b7280;">— OR —</div>
+
+        <div class="input-group">
+            <label for="fileInput">Upload TS File:</label>
+            <div class="file-dropzone" onclick="document.getElementById('fileInput').click()">
+                <span style="font-weight: 500;">Click to browse file</span>
+                <span style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">Supports .txt, .tsv, or .ts files</span>
+                <div id="fileNameDisplay"></div>
+            </div>
+            <input type="file" id="fileInput" accept=".txt,.tsv,.ts" style="display: none;">
+        </div>
+
+        <div class="btn-container">
+            <button id="convertBtn">Convert & Download CSV</button>
+            <button id="clearBtn" class="secondary">Clear</button>
+        </div>
+
+        <div class="preview-container" id="previewContainer">
+            <label>CSV Preview:</label>
+            <pre id="csvPreview"></pre>
+        </div>
+    </div>
+
+    <script>
+        const tsInput = document.getElementById('tsInput');
+        const fileInput = document.getElementById('fileInput');
+        const convertBtn = document.getElementById('convertBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const previewContainer = document.getElementById('previewContainer');
+        const csvPreview = document.getElementById('csvPreview');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+
+        let currentFileName = 'converted_data.csv'; // Default fallback name
+
+        // Handle File Upload
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Extract filename and swap extension to .csv
+            const originalName = file.name;
+            const lastDotIndex = originalName.lastIndexOf('.');
+            const baseName = lastDotIndex !== -1 ? originalName.substring(0, lastDotIndex) : originalName;
+            currentFileName = `${baseName}.csv`;
+
+            fileNameDisplay.textContent = `Selected file: ${originalName} (will save as: ${currentFileName})`;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                tsInput.value = e.target.result;
+            };
+            reader.readAsText(file);
+        });
+
+        // Convert logic
+        convertBtn.addEventListener('click', () => {
+            const rawData = tsInput.value.trim();
+            if (!rawData) {
+                alert('Please enter or upload TS data first!');
+                return;
+            }
+
+            // Process TS (Tab-Separated Values)
+            const lines = rawData.split(/\r?\n/);
+            const csvRows = lines.map(line => {
+                const cells = line.includes('\t') ? line.split('\t') : line.split(/\s{2,}/);
+                
+                return cells.map(cell => {
+                    let cleaned = cell.trim();
+                    if (cleaned.includes(',') || cleaned.includes('"') || cleaned.includes('\n')) {
+                        cleaned = `"${cleaned.replace(/"/g, '""')}"`;
+                    }
+                    return cleaned;
+                }).join(',');
+            });
+
+            const csvContent = csvRows.join('\n');
+
+            // Show Preview
+            csvPreview.textContent = csvContent;
+            previewContainer.classList.add('active');
+
+            // Trigger Download with the matching filename
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentFileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        // Clear logic
+        clearBtn.addEventListener('click', () => {
+            tsInput.value = '';
+            fileInput.value = '';
+            currentFileName = 'converted_data.csv';
+            fileNameDisplay.textContent = '';
+            csvPreview.textContent = '';
+            previewContainer.classList.remove('active');
+        });
+    </script>
+</body>
+</html>
