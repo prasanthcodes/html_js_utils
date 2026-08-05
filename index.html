@@ -150,7 +150,8 @@
                Using Unsplash Source. The `sig=${index}` forces a different random image 
                for every single card based on its position in the list.
             */
-            const imageUrl = `https://picsum.photos/600/400?sig=${index}`;
+            //const imageUrl = `https://picsum.photos/600/400?sig=${index}`;
+			const imageUrl = `https://picsum.photos/200/150?sig=${index}`;
 
             card.innerHTML = `
                 <div class="card-bg" style="background-image: url('${imageUrl}');"></div>
