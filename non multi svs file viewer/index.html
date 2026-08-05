@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Pathology Slide Viewer (.SVS / WSI)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            background-color: #1e1e1e;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+
+        h1 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            background-color: #2c2c2c;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #3d3d3d;
+            border-color: #666;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            position: relative;
+        }
+
+        #openseadragon-viewer {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            background-color: #0a0a0a;
+        }
+
+        .hud-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(30, 30, 30, 0.85);
+            backdrop-filter: blur(4px);
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            font-size: 0.85rem;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            z-index: 10;
+        }
+
+        .hud-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .hud-label {
+            color: #aaa;
+        }
+
+        .hud-value {
+            font-weight: 600;
+            color: #4da6ff;
+        }
+
+        .loading-indicator {
+            display: none;
+            color: #ffca28;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Medical Pathology Slide Viewer (.SVS / WSI)</h1>
+        <div class="controls">
+            <span id="loading-msg" class="loading-indicator">Decoding slide data...</span>
+            <div class="file-input-wrapper">
+                <button class="btn">Open Local Slide File</button>
+                <input type="file" id="file-input" accept=".svs,.tif,.tiff">
+            </div>
+            <button class="btn" id="btn-zoom-in">Zoom In (+)</button>
+            <button class="btn" id="btn-zoom-out">Zoom Out (-)</button>
+            <button class="btn" id="btn-reset">Reset View</button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div id="openseadragon-viewer"></div>
+        <div class="hud-overlay">
+            <div class="hud-item">
+                <span class="hud-label">Current Magnification:</span>
+                <span class="hud-value" id="hud-mag">--</span>
+            </div>
+            <div class="hud-item">
+                <span class="hud-label">Source Engine:</span>
+                <span class="hud-value" id="hud-source">Sample DeepZoom Image</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- OpenSeadragon Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
+    
+    <!-- UTIF.js for decoding TIFF/SVS pixel data directly in the browser -->
+    <script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.min.js"></script>
+
+    <script>
+        // Sample Deep Zoom Image for initial state
+        const SAMPLE_SLIDE_URL = "https://openseadragon.github.io/example-images/duomo/duomo.dzi";
+
+        // Initialize OpenSeadragon Viewer
+        const viewer = OpenSeadragon({
+            id: "openseadragon-viewer",
+            prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/",
+            tileSources: SAMPLE_SLIDE_URL,
+            animationTime: 0.5,
+            blendingTime: 0.1,
+            constrainDuringPan: true,
+            maxZoomPixelRatio: 2,
+            minZoomImageRatio: 0.8,
+            visibilityRatio: 1,
+            zoomPerClick: 2,
+            showNavigationControl: false
+        });
+
+        // Update Magnification readout on zoom change
+        viewer.addHandler('zoom', function() {
+            const zoom = viewer.viewport.getZoom(true);
+            const imageZoom = viewer.viewport.viewportToImageZoom(zoom);
+            const magnification = Math.round(imageZoom * 40);
+            document.getElementById('hud-mag').innerText = `${magnification}x (${Math.round(imageZoom * 100)}%)`;
+        });
+
+        // UI Controls
+        document.getElementById('btn-zoom-in').addEventListener('click', () => {
+            viewer.viewport.zoomBy(1.5);
+            viewer.viewport.applyConstraints();
+        });
+
+        document.getElementById('btn-zoom-out').addEventListener('click', () => {
+            viewer.viewport.zoomBy(1 / 1.5);
+            viewer.viewport.applyConstraints();
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            viewer.viewport.goHome();
+        });
+
+        // Client-side local file parser using UTIF.js
+        document.getElementById('file-input').addEventListener('change', async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const loadingIndicator = document.getElementById('loading-msg');
+            loadingIndicator.style.display = 'inline';
+            document.getElementById('hud-source').innerText = file.name;
+
+            try {
+                // Read local SVS/TIFF binary data
+                const arrayBuffer = await file.arrayBuffer();
+                
+                // Parse TIFF directory tags
+                const ifds = UTIF.decode(arrayBuffer);
+                if (!ifds || ifds.length === 0) {
+                    throw new Error("Invalid or unreadable TIFF/SVS format.");
+                }
+
+                // Pick an IFD (Image File Directory) entry
+                // SVS files contain multiple sub-images (pyramid levels, label, thumbnail)
+                const mainIfd = ifds[0];
+
+                // Decode raw pixel data into RGBA bytes
+                UTIF.decodeImage(arrayBuffer, mainIfd);
+                const rgba = UTIF.toRGBA8(mainIfd);
+
+                // Render RGBA bytes onto an offscreen HTML5 canvas
+                const canvas = document.createElement('canvas');
+                canvas.width = mainIfd.width;
+                canvas.height = mainIfd.height;
+                const ctx = canvas.getContext('2d');
+                const imgData = ctx.createImageData(canvas.width, canvas.height);
+                imgData.data.set(rgba);
+                ctx.putImageData(imgData, 0, 0);
+
+                // Export canvas data URL directly to OpenSeadragon as a single image source
+                const dataUrl = canvas.toDataURL();
+                viewer.open({
+                    type: 'image',
+                    url: dataUrl
+                });
+
+            } catch (err) {
+                console.error("SVS Loading Error:", err);
+                alert("Could not process local slide file. Ensure it is an uncompressed or standard LZW-compressed TIFF/SVS file.");
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
