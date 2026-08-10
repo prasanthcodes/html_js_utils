@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medical DICOM Viewer</title>
+  
+  <!-- Cornerstone dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cornerstone-core@2.6.1/dist/cornerstone.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dicom-parser@1.8.11/dist/dicomParser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cornerstone-wado-image-loader@4.1.5/dist/cornerstoneWADOImageLoader.bundle.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    /* Force Standard Dark Gray background (#222222) across entire page */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #222222 !important;
+      color: #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    header {
+      background-color: #1a1a1a;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid #333333;
+      z-index: 10;
+    }
+    
+    .file-input-label {
+      background-color: #2563eb;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    
+    .file-input-label:hover {
+      background-color: #1d4ed8;
+    }
+    
+    input[type="file"] {
+      display: none;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    
+    .btn {
+      background: #333333;
+      color: #fff;
+      border: 1px solid #555555;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    
+    .btn:hover {
+      background: #444444;
+    }
+
+    .btn-primary {
+      background: #059669;
+      border-color: #10b981;
+    }
+
+    .btn-primary:hover {
+      background: #047857;
+    }
+    
+    .info-panel {
+      font-size: 13px;
+      color: #aaa;
+      margin-left: auto;
+    }
+    
+    #viewer-container {
+      flex: 1;
+      position: relative;
+      background-color: #222222 !important;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    #dicom-element {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      background-color: #222222 !important;
+    }
+
+    /* Force Cornerstone internal canvas element to maintain dark gray background */
+    #dicom-element canvas {
+      background-color: #222222 !important;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <label class="file-input-label" for="file-input">
+      Open DICOM (.dcm)
+    </label>
+    <input type="file" id="file-input" accept=".dcm">
+
+    <div class="controls">
+      <button class="btn btn-primary" id="normalize-btn">Normalize Image</button>
+      <button class="btn" id="reset-btn">Reset View</button>
+    </div>
+
+    <div class="info-panel" id="viewport-info">
+      Zoom: 100% | Scroll mouse wheel to zoom | Left drag to pan
+    </div>
+  </header>
+
+  <div id="viewer-container">
+    <div id="dicom-element"></div>
+  </div>
+
+  <script>
+    // Initialize Cornerstone WADO Image Loader
+    cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
+    cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
+
+    const element = document.getElementById('dicom-element');
+    cornerstone.enable(element);
+
+    let currentLoadedImage = null;
+    let isPanning = false;
+    let startCoords = { x: 0, y: 0 };
+
+    // Apply persistent gray background to Cornerstone internal canvas render loop
+    element.addEventListener('cornerstoneimagerendered', function(e) {
+      const canvas = e.target.querySelector('canvas');
+      if (canvas) {
+        canvas.style.backgroundColor = '#222222';
+      }
+    });
+
+    // Handle File Upload
+    document.getElementById('file-input').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const imageId = cornerstoneWADOImageLoader.wadouri.fileManager.add(file);
+      
+      cornerstone.loadImage(imageId).then(function (image) {
+        currentLoadedImage = image;
+        cornerstone.displayImage(element, image);
+        
+        // Force background styling after image render
+        const canvas = element.querySelector('canvas');
+        if (canvas) canvas.style.backgroundColor = '#222222';
+        
+        updateInfo();
+      }).catch(err => {
+        alert("Error loading DICOM file: " + err.message);
+      });
+    });
+
+    // Percentile-Based Image Normalization (Filters out black border padding)
+    document.getElementById('normalize-btn').addEventListener('click', function () {
+      if (!currentLoadedImage) {
+        alert("Please load a DICOM image first.");
+        return;
+      }
+
+      const pixelData = currentLoadedImage.getPixelData();
+      if (!pixelData || pixelData.length === 0) return;
+
+      // Sample pixels to compute robust min/max ignoring extreme padding values
+      const sampleSize = Math.min(pixelData.length, 50000);
+      const step = Math.floor(pixelData.length / sampleSize);
+      const samples = [];
+
+      for (let i = 0; i < pixelData.length; i += step) {
+        samples.push(pixelData[i]);
+      }
+
+      // Sort pixel samples numerically
+      samples.sort((a, b) => a - b);
+
+      // Use 1st percentile and 99th percentile to exclude extreme black/air padding
+      const pMin = samples[Math.floor(samples.length * 0.01)];
+      const pMax = samples[Math.floor(samples.length * 0.99)];
+
+      const viewport = cornerstone.getViewport(element);
+      
+      // Calculate normalized Window Width and Window Center
+      viewport.voi.windowWidth = Math.max(1, pMax - pMin);
+      viewport.voi.windowCenter = pMin + (viewport.voi.windowWidth / 2);
+
+      cornerstone.setViewport(element, viewport);
+      updateInfo();
+    });
+
+    // Mouse Wheel Zoom
+    element.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      const viewport = cornerstone.getViewport(element);
+      if (!viewport) return;
+
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+      viewport.scale *= zoomFactor;
+      viewport.scale = Math.max(0.1, Math.min(viewport.scale, 20));
+
+      cornerstone.setViewport(element, viewport);
+      updateInfo();
+    });
+
+    // Mouse Drag Panning
+    element.addEventListener('mousedown', function (e) {
+      if (e.button !== 0) return;
+      isPanning = true;
+      startCoords = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('mousemove', function (e) {
+      if (!isPanning) return;
+      const viewport = cornerstone.getViewport(element);
+      if (!viewport) return;
+
+      const deltaX = e.clientX - startCoords.x;
+      const deltaY = e.clientY - startCoords.y;
+
+      viewport.translation.x += (deltaX / viewport.scale);
+      viewport.translation.y += (deltaY / viewport.scale);
+
+      startCoords = { x: e.clientX, y: e.clientY };
+      cornerstone.setViewport(element, viewport);
+    });
+
+    window.addEventListener('mouseup', function () {
+      isPanning = false;
+    });
+
+    // Reset View
+    document.getElementById('reset-btn').addEventListener('click', function () {
+      cornerstone.reset(element);
+      updateInfo();
+    });
+
+    function updateInfo() {
+      const viewport = cornerstone.getViewport(element);
+      if (viewport) {
+        const zoomPct = Math.round(viewport.scale * 100);
+        const ww = Math.round(viewport.voi.windowWidth);
+        const wc = Math.round(viewport.voi.windowCenter);
+        document.getElementById('viewport-info').innerText = 
+          `Zoom: ${zoomPct}% | WW: ${ww} | WC: ${wc}`;
+      }
+    }
+
+    window.addEventListener('resize', () => cornerstone.resize(element));
+  </script>
+</body>
+</html>

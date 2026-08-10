@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Standalone NIfTI (.nii / .nii.gz) Viewer</title>
-    <!-- Inline pako 2.1.0 (zlib/gzip inflate decompression) -->
-    <script src="data:text/javascript;base64,sB4AAMAnBAAASAMAgAAAAAD/A4AAICkAANgAAACAAgAABAAAAAAAAP8DgAAgKQAA2AAAAIAiBgBAAQAACwMAMwQAADMEAP8DgAAgKQAA2AAAAIAiBgB/AwCAAn8DAG4IAG4IAP8DkBkBAFgDAAAYAAAAYAYAgAIAAH8DAIAXAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP8DgAAgKQAA2AAAAIAIAGAEAP8DgAAgKQAA2AAAAIAiBgBAAQAACwMAMwQAADMEAP8D"></script>
+    <!-- External pako 2.1.0 for Gzip decompression -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <style>
         :root {
             --bg-color: #121212;
             --panel-bg: #1e1e1e;
             --accent-color: #00adb5;
+            --accent-hover: #008b92;
             --text-color: #eeeeee;
             --border-color: #333333;
         }
@@ -57,6 +57,21 @@
             font-weight: bold;
             cursor: pointer;
             border: none;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background-color: #333333;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: #444444;
         }
 
         .btn-wrapper input[type=file] {
@@ -83,6 +98,7 @@
             flex-direction: column;
             gap: 20px;
             box-sizing: border-box;
+            z-index: 5;
         }
 
         .control-group {
@@ -119,16 +135,30 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: #000;
+            background-color: #555555; /* Neutral mid-gray display area */
             position: relative;
             user-select: none;
+            overflow: hidden;
+            cursor: grab;
+        }
+
+        #viewport-container:active {
+            cursor: grabbing;
+        }
+
+        #canvas-wrapper {
+            position: absolute;
+            transform-origin: center center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #222222; /* Canvas boundary highlight */
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
 
         canvas {
-            max-width: 95%;
-            max-height: 95%;
-            object-fit: contain;
             image-rendering: pixelated;
+            display: block;
         }
 
         #info-overlay {
@@ -137,11 +167,26 @@
             left: 15px;
             font-family: monospace;
             font-size: 12px;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.75);
             padding: 8px 12px;
             border-radius: 4px;
             pointer-events: none;
             line-height: 1.4;
+            z-index: 4;
+        }
+
+        #controls-hint {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #ccc;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 6px 10px;
+            border-radius: 4px;
+            pointer-events: none;
+            z-index: 4;
         }
 
         #loading {
@@ -164,7 +209,7 @@
     <header>
         <h1>NIfTI Slice Viewer</h1>
         <div class="btn-wrapper">
-            <button class="btn">Open NIfTI File (.nii/ .nii.gz)</button>
+            <button class="btn">Open NIfTI File (.nii / .nii.gz)</button>
             <input type="file" id="file-input" accept=".nii,.gz">
         </div>
     </header>
@@ -186,20 +231,32 @@
             </div>
 
             <div class="control-group">
-                <label for="window-width">Window Width (WW) <span id="ww-val" class="val-display">400</span></label>
+                <label for="window-width">Contrast <span id="ww-val" class="val-display">400</span></label>
                 <input type="range" id="window-width" min="1" max="2000" value="400">
             </div>
 
             <div class="control-group">
-                <label for="window-center">Window Center (WL) <span id="wc-val" class="val-display">40</span></label>
+                <label for="window-center">Brightness <span id="wc-val" class="val-display">40</span></label>
                 <input type="range" id="window-center" min="-1000" max="1000" value="40">
+            </div>
+
+            <div class="control-group">
+                <button id="btn-normalize" class="btn btn-secondary" disabled>Normalize Image Data</button>
+            </div>
+            
+            <div class="control-group">
+                <button id="btn-reset-zoom" class="btn btn-secondary">Reset Zoom & Pan</button>
             </div>
         </div>
 
         <div id="viewport-container">
             <div id="loading">Decompressing & Parsing File...</div>
             <div id="info-overlay">Select a .nii or .nii.gz file to render.</div>
-            <canvas id="viewer-canvas"></canvas>
+            <div id="controls-hint">Scroll: Zoom | Shift + Scroll: Change Slice | Drag: Pan | Double Click: Reset View</div>
+            
+            <div id="canvas-wrapper">
+                <canvas id="viewer-canvas"></canvas>
+            </div>
         </div>
     </main>
 
@@ -211,7 +268,6 @@
             }
 
             static parse(arrayBuffer) {
-                // Decompress Gzip if magic header detected (0x1F 0x8B)
                 if (NiftiParser.isGzip(arrayBuffer)) {
                     if (typeof pako !== 'undefined') {
                         const decompressed = pako.ungzip(new Uint8Array(arrayBuffer));
@@ -224,7 +280,6 @@
                 const view = new DataView(arrayBuffer);
                 let littleEndian = true;
 
-                // Endianness check via sizeof_hdr (348)
                 let sizeof_hdr = view.getInt32(0, true);
                 if (sizeof_hdr !== 348) {
                     sizeof_hdr = view.getInt32(0, false);
@@ -249,7 +304,6 @@
                 const offset = Math.floor(vox_offset);
                 const numPixels = dims[1] * dims[2] * dims[3];
 
-                // Byte-aligned element extraction avoiding RangeErrors
                 let typedArray;
                 if (datatype === 2) {
                     typedArray = new Uint8Array(arrayBuffer, offset, numPixels);
@@ -283,7 +337,7 @@
             }
         }
 
-        // UI Logic
+        // State Variables
         let niftiHeader = null;
         let niftiTypedData = null;
         let dimensions = [0, 0, 0];
@@ -293,8 +347,19 @@
         let windowWidth = 400;
         let windowCenter = 40;
 
+        // Zoom & Pan Variables
+        let zoomLevel = 1.0;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+
+        // Elements
         const fileInput = document.getElementById('file-input');
         const canvas = document.getElementById('viewer-canvas');
+        const canvasWrapper = document.getElementById('canvas-wrapper');
+        const viewportContainer = document.getElementById('viewport-container');
         const ctx = canvas.getContext('2d');
         const sliceRange = document.getElementById('slice-range');
         const sliceVal = document.getElementById('slice-val');
@@ -305,6 +370,8 @@
         const wcVal = document.getElementById('wc-val');
         const infoOverlay = document.getElementById('info-overlay');
         const loading = document.getElementById('loading');
+        const btnNormalize = document.getElementById('btn-normalize');
+        const btnResetZoom = document.getElementById('btn-reset-zoom');
 
         fileInput.addEventListener('change', (evt) => {
             const files = evt.target.files;
@@ -321,7 +388,9 @@
                         niftiTypedData = parsed.data;
                         dimensions = [niftiHeader.dims[1], niftiHeader.dims[2], niftiHeader.dims[3]];
 
+                        btnNormalize.disabled = false;
                         setupSliders();
+                        resetZoomPan();
                         updateView();
                     } catch (err) {
                         alert("Error parsing file: " + err.message);
@@ -361,6 +430,34 @@
             updatePlaneBounds();
         }
 
+        function normalizeImageData() {
+            if (!niftiTypedData) return;
+
+            // Subsample to find 1st and 99th percentile for robust normalization
+            const sampleSize = 20000;
+            const samples = new Float32Array(Math.min(sampleSize, niftiTypedData.length));
+            const step = Math.max(1, Math.floor(niftiTypedData.length / samples.length));
+            
+            for (let i = 0; i < samples.length; i++) {
+                samples[i] = niftiTypedData[i * step] * niftiHeader.scl_slope + niftiHeader.scl_inter;
+            }
+            
+            samples.sort();
+
+            const p1 = samples[Math.floor(samples.length * 0.01)];
+            const p99 = samples[Math.floor(samples.length * 0.99)];
+
+            windowWidth = Math.max(1, p99 - p1);
+            windowCenter = p1 + (windowWidth / 2);
+
+            wwRange.value = windowWidth;
+            wcRange.value = windowCenter;
+            wwVal.innerText = Math.round(windowWidth);
+            wcVal.innerText = Math.round(windowCenter);
+
+            updateView();
+        }
+
         function updatePlaneBounds() {
             let maxSlice = 0;
             if (currentPlane === 'axial') maxSlice = dimensions[2] - 1;
@@ -370,6 +467,17 @@
             sliceRange.max = Math.max(0, maxSlice);
             currentSlice = Math.floor(sliceRange.max / 2);
             sliceRange.value = currentSlice;
+        }
+
+        function applyTransform() {
+            canvasWrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+        }
+
+        function resetZoomPan() {
+            zoomLevel = 1.0;
+            panX = 0;
+            panY = 0;
+            applyTransform();
         }
 
         function renderSlice() {
@@ -433,16 +541,19 @@
                 Dim: ${dimensions.join('x')}<br>
                 Plane: ${currentPlane.toUpperCase()}<br>
                 Slice: ${currentSlice + 1} / ${parseInt(sliceRange.max) + 1}<br>
-                WL: ${Math.round(windowCenter)} WW: ${Math.round(windowWidth)}
+                WL: ${Math.round(windowCenter)} WW: ${Math.round(windowWidth)}<br>
+                Zoom: ${Math.round(zoomLevel * 100)}%
             `;
             sliceVal.innerText = `${currentSlice + 1} / ${parseInt(sliceRange.max) + 1}`;
         }
 
         function updateView() { renderSlice(); }
 
+        // Event Listeners
         viewOrient.addEventListener('change', (e) => {
             currentPlane = e.target.value;
             updatePlaneBounds();
+            resetZoomPan();
             updateView();
         });
 
@@ -463,19 +574,57 @@
             updateView();
         });
 
-        document.getElementById('viewport-container').addEventListener('wheel', (e) => {
+        btnNormalize.addEventListener('click', normalizeImageData);
+        btnResetZoom.addEventListener('click', resetZoomPan);
+
+        // Zoom & Slice Change via Wheel
+        viewportContainer.addEventListener('wheel', (e) => {
             if (!niftiTypedData) return;
             e.preventDefault();
 
-            if (e.deltaY < 0) {
-                if (currentSlice < parseInt(sliceRange.max)) currentSlice++;
+            if (e.shiftKey) {
+                // Change slice when holding Shift key
+                if (e.deltaY < 0) {
+                    if (currentSlice < parseInt(sliceRange.max)) currentSlice++;
+                } else {
+                    if (currentSlice > 0) currentSlice--;
+                }
+                sliceRange.value = currentSlice;
+                updateView();
             } else {
-                if (currentSlice > 0) currentSlice--;
+                // Zooming in/out
+                const zoomFactor = 1.15;
+                if (e.deltaY < 0) {
+                    zoomLevel *= zoomFactor;
+                } else {
+                    zoomLevel /= zoomFactor;
+                }
+                zoomLevel = Math.max(0.2, Math.min(zoomLevel, 20.0)); // Clamp scale
+                applyTransform();
+                updateView();
             }
-
-            sliceRange.value = currentSlice;
-            updateView();
         }, { passive: false });
+
+        // Pan Controls (Mouse Drag)
+        viewportContainer.addEventListener('mousedown', (e) => {
+            if (!niftiTypedData) return;
+            isDragging = true;
+            startX = e.clientX - panX;
+            startY = e.clientY - panY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            panX = e.clientX - startX;
+            panY = e.clientY - startY;
+            applyTransform();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        viewportContainer.addEventListener('dblclick', resetZoomPan);
     </script>
 </body>
 </html>
