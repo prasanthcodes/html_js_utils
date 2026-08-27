@@ -1,280 +1,477 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Medical DICOM Viewer</title>
-  
-  <!-- Cornerstone dependencies -->
-  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/cornerstone-core@2.6.1/dist/cornerstone.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dicom-parser@1.8.11/dist/dicomParser.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/cornerstone-wado-image-loader@4.1.5/dist/cornerstoneWADOImageLoader.bundle.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Single-File DICOM Viewer</title>
+    
+    <!-- Stable CDN Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cornerstone-core@2.6.1/dist/cornerstone.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dicom-parser@1.8.9/dist/dicomParser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cornerstone-wado-image-loader@4.1.2/dist/cornerstoneWADOImageLoader.bundle.min.js"></script>
 
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    
-    /* Force Standard Dark Gray background (#222222) across entire page */
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: #222222 !important;
-      color: #e0e0e0;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-    }
-    
-    header {
-      background-color: #1a1a1a;
-      padding: 12px 20px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      border-bottom: 1px solid #333333;
-      z-index: 10;
-    }
-    
-    .file-input-label {
-      background-color: #2563eb;
-      color: white;
-      padding: 8px 16px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      transition: background 0.2s;
-    }
-    
-    .file-input-label:hover {
-      background-color: #1d4ed8;
-    }
-    
-    input[type="file"] {
-      display: none;
-    }
-    
-    .controls {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    
-    .btn {
-      background: #333333;
-      color: #fff;
-      border: 1px solid #555555;
-      padding: 6px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 13px;
-      transition: background 0.2s;
-    }
-    
-    .btn:hover {
-      background: #444444;
-    }
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+        }
 
-    .btn-primary {
-      background: #059669;
-      border-color: #10b981;
-    }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
 
-    .btn-primary:hover {
-      background: #047857;
-    }
-    
-    .info-panel {
-      font-size: 13px;
-      color: #aaa;
-      margin-left: auto;
-    }
-    
-    #viewer-container {
-      flex: 1;
-      position: relative;
-      background-color: #222222 !important;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    
-    #dicom-element {
-      width: 100%;
-      height: 100%;
-      position: absolute;
-      top: 0;
-      left: 0;
-      background-color: #222222 !important;
-    }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
 
-    /* Force Cornerstone internal canvas element to maintain dark gray background */
-    #dicom-element canvas {
-      background-color: #222222 !important;
-    }
-  </style>
+        header {
+            background-color: var(--panel-bg);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn, .file-upload-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        .btn:hover, .file-upload-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background-color: #334155;
+        }
+        .btn-secondary:hover {
+            background-color: #475569;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .viewer-container {
+            flex: 1;
+            position: relative;
+            background-color: #222222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: default;
+        }
+
+        #dicom-element {
+            width: 100%;
+            height: 100%;
+            outline: none;
+        }
+
+        .sidebar {
+            width: 320px;
+            background-color: var(--panel-bg);
+            border-left: 1px solid var(--border-color);
+            padding: 1.25rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .sidebar h3 {
+            font-size: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            font-size: 0.875rem;
+        }
+
+        .meta-label {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .meta-value {
+            color: var(--text-color);
+            word-break: break-all;
+        }
+
+        .dropzone-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            z-index: 10;
+            text-align: center;
+            padding: 2rem;
+            transition: opacity 0.3s ease;
+        }
+
+        .dropzone-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .dropzone-box {
+            border: 2px dashed var(--border-color);
+            padding: 3rem;
+            border-radius: 0.75rem;
+            max-width: 500px;
+            width: 100%;
+            background: rgba(30, 41, 59, 0.5);
+        }
+
+        .dropzone-box p {
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .viewport-hud {
+            position: absolute;
+            bottom: 12px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--text-color);
+            pointer-events: none;
+            letter-spacing: 0.03em;
+        }
+    </style>
 </head>
 <body>
 
-  <header>
-    <label class="file-input-label" for="file-input">
-      Open DICOM (.dcm)
-    </label>
-    <input type="file" id="file-input" accept=".dcm">
+    <header>
+        <h1>DICOM Web Viewer</h1>
+        <div class="toolbar">
+            <label class="file-upload-btn">
+                📂 Open File
+                <input type="file" id="file-input" accept=".dcm,application/dicom">
+            </label>
+            <button class="btn btn-secondary" id="normalize-btn">Normalize</button>
+            <button class="btn btn-secondary" id="invert-btn">Invert</button>
+            <button class="btn btn-secondary" id="rotate-btn">Rotate 90°</button>
+            <button class="btn btn-secondary" id="reset-btn">Reset</button>
+        </div>
+    </header>
 
-    <div class="controls">
-      <button class="btn btn-primary" id="normalize-btn">Normalize Image</button>
-      <button class="btn" id="reset-btn">Reset View</button>
+    <div class="main-container">
+        <!-- Viewer Viewport -->
+        <div class="viewer-container" id="viewerDropZone">
+            <div id="dicom-element"></div>
+            <div class="viewport-hud" id="viewport-info">Zoom: - | WW: - | WC: -</div>
+            
+            <!-- Welcome / Dropzone Screen -->
+            <div class="dropzone-overlay" id="dropzoneOverlay">
+                <div class="dropzone-box">
+                    <h2>Drop your DICOM file here</h2>
+                    <p>Supports standard single-frame .dcm part-10 files</p>
+                    <br>
+                    <label class="file-upload-btn" style="margin: 0 auto;">
+                        Browse Files
+                        <input type="file" class="fileInputAlias" accept=".dcm,application/dicom">
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metadata Panel -->
+        <div class="sidebar">
+            <h3>Patient Information</h3>
+            <div class="meta-item">
+                <span class="meta-label">Patient Name</span>
+                <span class="meta-value" id="patName">-</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Patient ID</span>
+                <span class="meta-value" id="patID">-</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Modality</span>
+                <span class="meta-value" id="modality">-</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Study Date</span>
+                <span class="meta-value" id="studyDate">-</span>
+            </div>
+            <h3>Image Details</h3>
+            <div class="meta-item">
+                <span class="meta-label">Dimensions</span>
+                <span class="meta-value" id="imgDimensions">-</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Transfer Syntax</span>
+                <span class="meta-value" id="transferSyntax">-</span>
+            </div>
+        </div>
     </div>
 
-    <div class="info-panel" id="viewport-info">
-      Zoom: 100% | Scroll mouse wheel to zoom | Left drag to pan
-    </div>
-  </header>
+    <script>
+        // Initialize Cornerstone WADO Image Loader
+        cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
+        cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
 
-  <div id="viewer-container">
-    <div id="dicom-element"></div>
-  </div>
+        const element = document.getElementById('dicom-element');
+        const dropzoneOverlay = document.getElementById('dropzoneOverlay');
+        cornerstone.enable(element);
 
-  <script>
-    // Initialize Cornerstone WADO Image Loader
-    cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
-    cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
+        let currentLoadedImage = null;
+        let isPanning = false;
+        let startCoords = { x: 0, y: 0 };
 
-    const element = document.getElementById('dicom-element');
-    cornerstone.enable(element);
+        cornerstoneWADOImageLoader.webWorkerManager.initialize({
+            maxWebWorkers: navigator.hardwareConcurrency || 1,
+            startWebWorkersOnDemand: true,
+            taskConfiguration: {
+                'decodeTask': {
+                    codecsPath: 'https://cdn.jsdelivr.net/npm/cornerstone-wado-image-loader@4.1.2/dist/codecs.js'
+                }
+            }
+        });
 
-    let currentLoadedImage = null;
-    let isPanning = false;
-    let startCoords = { x: 0, y: 0 };
+        // Apply persistent gray background to Cornerstone internal canvas render loop
+        element.addEventListener('cornerstoneimagerendered', function(e) {
+            const canvas = e.target.querySelector('canvas');
+            if (canvas) {
+                canvas.style.backgroundColor = '#222222';
+            }
+        });
 
-    // Apply persistent gray background to Cornerstone internal canvas render loop
-    element.addEventListener('cornerstoneimagerendered', function(e) {
-      const canvas = e.target.querySelector('canvas');
-      if (canvas) {
-        canvas.style.backgroundColor = '#222222';
-      }
-    });
+        // Handle File Upload via Main Input & Dropzone Alias
+        const handleFileSelection = (file) => {
+            if (!file) return;
+            dropzoneOverlay.classList.add('hidden');
+            const imageId = cornerstoneWADOImageLoader.wadouri.fileManager.add(file);
+            
+            cornerstone.loadImage(imageId).then(function (image) {
+                currentLoadedImage = image;
+                cornerstone.displayImage(element, image);
+                
+                // Force background styling after image render
+                const canvas = element.querySelector('canvas');
+                if (canvas) canvas.style.backgroundColor = '#222222';
+                
+                updateInfo();
+                updateMetadata(image);
+            }).catch(err => {
+                console.error("Error loading DICOM image:", err);
+                alert("Error loading DICOM file: " + err.message);
+                dropzoneOverlay.classList.remove('hidden');
+            });
+        };
 
-    // Handle File Upload
-    document.getElementById('file-input').addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
+        document.getElementById('file-input').addEventListener('change', function (e) {
+            handleFileSelection(e.target.files[0]);
+        });
 
-      const imageId = cornerstoneWADOImageLoader.wadouri.fileManager.add(file);
-      
-      cornerstone.loadImage(imageId).then(function (image) {
-        currentLoadedImage = image;
-        cornerstone.displayImage(element, image);
-        
-        // Force background styling after image render
-        const canvas = element.querySelector('canvas');
-        if (canvas) canvas.style.backgroundColor = '#222222';
-        
-        updateInfo();
-      }).catch(err => {
-        alert("Error loading DICOM file: " + err.message);
-      });
-    });
+        document.querySelectorAll('.fileInputAlias').forEach(input => {
+            input.addEventListener('change', function (e) {
+                handleFileSelection(e.target.files[0]);
+            });
+        });
 
-    // Percentile-Based Image Normalization (Filters out black border padding)
-    document.getElementById('normalize-btn').addEventListener('click', function () {
-      if (!currentLoadedImage) {
-        alert("Please load a DICOM image first.");
-        return;
-      }
+        // Drag and Drop functionality
+        const viewerDropZone = document.getElementById('viewerDropZone');
+        viewerDropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); });
+        viewerDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleFileSelection(e.dataTransfer.files[0]);
+            }
+        });
 
-      const pixelData = currentLoadedImage.getPixelData();
-      if (!pixelData || pixelData.length === 0) return;
+        // Percentile-Based Image Normalization (Filters out black border padding)
+        document.getElementById('normalize-btn').addEventListener('click', function () {
+            if (!currentLoadedImage) {
+                alert("Please load a DICOM image first.");
+                return;
+            }
 
-      // Sample pixels to compute robust min/max ignoring extreme padding values
-      const sampleSize = Math.min(pixelData.length, 50000);
-      const step = Math.floor(pixelData.length / sampleSize);
-      const samples = [];
+            const pixelData = currentLoadedImage.getPixelData();
+            if (!pixelData || pixelData.length === 0) return;
 
-      for (let i = 0; i < pixelData.length; i += step) {
-        samples.push(pixelData[i]);
-      }
+            // Sample pixels to compute robust min/max ignoring extreme padding values
+            const sampleSize = Math.min(pixelData.length, 50000);
+            const step = Math.floor(pixelData.length / sampleSize);
+            const samples = [];
 
-      // Sort pixel samples numerically
-      samples.sort((a, b) => a - b);
+            for (let i = 0; i < pixelData.length; i += step) {
+                samples.push(pixelData[i]);
+            }
 
-      // Use 1st percentile and 99th percentile to exclude extreme black/air padding
-      const pMin = samples[Math.floor(samples.length * 0.01)];
-      const pMax = samples[Math.floor(samples.length * 0.99)];
+            // Sort pixel samples numerically
+            samples.sort((a, b) => a - b);
 
-      const viewport = cornerstone.getViewport(element);
-      
-      // Calculate normalized Window Width and Window Center
-      viewport.voi.windowWidth = Math.max(1, pMax - pMin);
-      viewport.voi.windowCenter = pMin + (viewport.voi.windowWidth / 2);
+            // Use 1st percentile and 99th percentile to exclude extreme black/air padding
+            const pMin = samples[Math.floor(samples.length * 0.01)];
+            const pMax = samples[Math.floor(samples.length * 0.99)];
 
-      cornerstone.setViewport(element, viewport);
-      updateInfo();
-    });
+            const viewport = cornerstone.getViewport(element);
+            
+            // Calculate normalized Window Width and Window Center
+            viewport.voi.windowWidth = Math.max(1, pMax - pMin);
+            viewport.voi.windowCenter = pMin + (viewport.voi.windowWidth / 2);
 
-    // Mouse Wheel Zoom
-    element.addEventListener('wheel', function (e) {
-      e.preventDefault();
-      const viewport = cornerstone.getViewport(element);
-      if (!viewport) return;
+            cornerstone.setViewport(element, viewport);
+            updateInfo();
+        });
 
-      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
-      viewport.scale *= zoomFactor;
-      viewport.scale = Math.max(0.1, Math.min(viewport.scale, 20));
+        // Extra Action Toolbars
+        document.getElementById('invert-btn').addEventListener('click', () => {
+            if (!currentLoadedImage) return;
+            const viewport = cornerstone.getViewport(element);
+            viewport.invert = !viewport.invert;
+            cornerstone.setViewport(element, viewport);
+            updateInfo();
+        });
 
-      cornerstone.setViewport(element, viewport);
-      updateInfo();
-    });
+        document.getElementById('rotate-btn').addEventListener('click', () => {
+            if (!currentLoadedImage) return;
+            const viewport = cornerstone.getViewport(element);
+            viewport.rotation = (viewport.rotation + 90) % 360;
+            cornerstone.setViewport(element, viewport);
+            updateInfo();
+        });
 
-    // Mouse Drag Panning
-    element.addEventListener('mousedown', function (e) {
-      if (e.button !== 0) return;
-      isPanning = true;
-      startCoords = { x: e.clientX, y: e.clientY };
-    });
+        // Mouse Wheel Zoom
+        element.addEventListener('wheel', function (e) {
+            e.preventDefault();
+            if (!currentLoadedImage) return;
+            const viewport = cornerstone.getViewport(element);
+            if (!viewport) return;
 
-    window.addEventListener('mousemove', function (e) {
-      if (!isPanning) return;
-      const viewport = cornerstone.getViewport(element);
-      if (!viewport) return;
+            const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+            viewport.scale *= zoomFactor;
+            viewport.scale = Math.max(0.1, Math.min(viewport.scale, 20));
 
-      const deltaX = e.clientX - startCoords.x;
-      const deltaY = e.clientY - startCoords.y;
+            cornerstone.setViewport(element, viewport);
+            updateInfo();
+        }, { passive: false });
 
-      viewport.translation.x += (deltaX / viewport.scale);
-      viewport.translation.y += (deltaY / viewport.scale);
+        // Mouse Drag Panning
+        element.addEventListener('mousedown', function (e) {
+            if (e.button !== 0 || !currentLoadedImage) return;
+            isPanning = true;
+            startCoords = { x: e.clientX, y: e.clientY };
+        });
 
-      startCoords = { x: e.clientX, y: e.clientY };
-      cornerstone.setViewport(element, viewport);
-    });
+        window.addEventListener('mousemove', function (e) {
+            if (!isPanning || !currentLoadedImage) return;
+            const viewport = cornerstone.getViewport(element);
+            if (!viewport) return;
 
-    window.addEventListener('mouseup', function () {
-      isPanning = false;
-    });
+            const deltaX = e.clientX - startCoords.x;
+            const deltaY = e.clientY - startCoords.y;
 
-    // Reset View
-    document.getElementById('reset-btn').addEventListener('click', function () {
-      cornerstone.reset(element);
-      updateInfo();
-    });
+            viewport.translation.x += (deltaX / viewport.scale);
+            viewport.translation.y += (deltaY / viewport.scale);
 
-    function updateInfo() {
-      const viewport = cornerstone.getViewport(element);
-      if (viewport) {
-        const zoomPct = Math.round(viewport.scale * 100);
-        const ww = Math.round(viewport.voi.windowWidth);
-        const wc = Math.round(viewport.voi.windowCenter);
-        document.getElementById('viewport-info').innerText = 
-          `Zoom: ${zoomPct}% | WW: ${ww} | WC: ${wc}`;
-      }
-    }
+            startCoords = { x: e.clientX, y: e.clientY };
+            cornerstone.setViewport(element, viewport);
+        });
 
-    window.addEventListener('resize', () => cornerstone.resize(element));
-  </script>
+        window.addEventListener('mouseup', function () {
+            isPanning = false;
+        });
+
+        // Reset View
+        document.getElementById('reset-btn').addEventListener('click', function () {
+            if (!currentLoadedImage) return;
+            cornerstone.reset(element);
+            updateInfo();
+        });
+
+        function updateInfo() {
+            const viewport = cornerstone.getViewport(element);
+            if (viewport) {
+                const zoomPct = Math.round(viewport.scale * 100);
+                const ww = Math.round(viewport.voi.windowWidth);
+                const wc = Math.round(viewport.voi.windowCenter);
+                document.getElementById('viewport-info').innerText = 
+                    `Zoom: ${zoomPct}% | WW: ${ww} | WC: ${wc}`;
+            }
+        }
+
+        function updateMetadata(image) {
+            const data = image.data;
+            const getString = (tag) => {
+                try { return data.string(tag) || 'N/A'; } catch { return 'N/A'; }
+            };
+
+            document.getElementById('patName').textContent = getString('x00100010');
+            document.getElementById('patID').textContent = getString('x00100020');
+            document.getElementById('modality').textContent = getString('x00080060');
+            document.getElementById('studyDate').textContent = getString('x00080020');
+            document.getElementById('imgDimensions').textContent = `${image.width} x ${image.height}`;
+            
+            try {
+                document.getElementById('transferSyntax').textContent = data.string('x00020010') || 'N/A';
+            } catch {
+                document.getElementById('transferSyntax').textContent = 'N/A';
+            }
+        }
+
+        window.addEventListener('resize', () => cornerstone.resize(element));
+    </script>
 </body>
 </html>
