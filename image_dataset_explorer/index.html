@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Image Dataset Explorer</title>
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#fff; --panel-2:#fbfbfd; --ink:#12151a; --muted:#5c6675;
+  --line:#e3e7ee; --line-2:#eef1f6; --accent:#2f6df5; --accent-soft:#eaf0ff;
+  --warn:#b7791f; --warn-soft:#fdf3e0;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px -12px rgba(16,24,40,.18);
+}
+@media (prefers-color-scheme:dark){
+ :root:not([data-theme=light]){
+  --bg:#0d1016; --panel:#141922; --panel-2:#11161e; --ink:#e8ecf3; --muted:#8b97a8;
+  --line:#232b38; --line-2:#1b222c; --accent:#6f9bff; --accent-soft:#1a2438;
+  --warn:#e0b45f; --warn-soft:#2a2214;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+ }
+}
+:root[data-theme=dark]{
+  --bg:#0d1016; --panel:#141922; --panel-2:#11161e; --ink:#e8ecf3; --muted:#8b97a8;
+  --line:#232b38; --line-2:#1b222c; --accent:#6f9bff; --accent-soft:#1a2438;
+  --warn:#e0b45f; --warn-soft:#2a2214;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);overflow:hidden;
+ font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+ -webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:var(--ink)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+/* ---------- chrome ---------- */
+.app{display:flex;flex-direction:column;height:100%}
+.top{display:flex;align-items:center;gap:10px;padding:10px 14px;flex-wrap:wrap;
+ border-bottom:1px solid var(--line);background:var(--panel-2);flex:none}
+.brand{font-weight:660;letter-spacing:-.01em;margin-right:4px;white-space:nowrap}
+.btn{background:var(--panel);border:1px solid var(--line);border-radius:9px;
+ padding:7px 12px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.pri:hover{filter:brightness(1.07)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+select,input[type=search]{background:var(--panel);border:1px solid var(--line);
+ border-radius:9px;padding:7px 11px}
+input[type=search]{min-width:190px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.spacer{flex:1}
+.chips{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.chip{font-size:11.5px;padding:3px 9px;border-radius:999px;background:var(--line-2);
+ color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.chip b{color:var(--ink);font-weight:640}
+.chip.mode{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.chip.warn{background:var(--warn-soft);color:var(--warn);font-weight:600}
+
+/* ---------- layout ---------- */
+.body{flex:1;display:flex;min-height:0}
+aside{width:296px;flex:none;border-right:1px solid var(--line);background:var(--panel-2);
+ display:flex;flex-direction:column;min-height:0}
+aside.hide{display:none}
+.aside-h{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;gap:6px;
+ align-items:center;flex:none}
+.aside-h .t{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+ font-weight:640;flex:1}
+.mini{background:transparent;border:1px solid var(--line);border-radius:7px;
+ padding:3px 7px;font-size:11.5px;cursor:pointer;color:var(--muted)}
+.mini:hover{color:var(--ink);border-color:var(--muted)}
+#tree{overflow:auto;padding:8px 6px 40px;flex:1;min-height:0}
+main{flex:1;overflow:auto;min-width:0}
+.inner{max-width:1500px;margin:0 auto;padding:20px 22px 90px}
+
+/* ---------- tree ---------- */
+.tnode>.tkids{margin-left:11px;border-left:1px solid var(--line);padding-left:5px}
+.trow{display:flex;align-items:center;gap:5px;padding:3px 6px;border-radius:7px;cursor:pointer;
+ user-select:none}
+.trow:hover{background:var(--line-2)}
+.trow.active{background:var(--accent-soft)}
+.trow.active .tname{color:var(--accent);font-weight:640}
+.tw{width:15px;height:15px;flex:none;display:grid;place-items:center;border-radius:5px}
+.tw:hover{background:var(--line)}
+.tw i{width:6px;height:6px;border-right:1.6px solid var(--muted);border-bottom:1.6px solid var(--muted);
+ transform:rotate(-45deg);transition:transform .16s;display:block;margin-left:-2px}
+.tnode.open>.trow .tw i{transform:rotate(45deg)}
+.tname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.tcount{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+.tnode:not(.open)>.tkids{display:none}
+.tnode.leafimg>.trow .tname{color:var(--ink)}
+.tnode.dim{opacity:.4}
+
+/* ---------- drop / empty state ---------- */
+.drop{height:100%;display:grid;place-items:center;padding:30px}
+.drop[hidden]{display:none}
+.drop-in{max-width:620px;text-align:center;border:2px dashed var(--line);border-radius:18px;
+ padding:52px 34px;background:var(--panel);box-shadow:var(--shadow)}
+.drop-in h1{margin:0 0 8px;font-size:22px;letter-spacing:-.02em}
+.drop-in p{color:var(--muted);margin:0 auto 22px;max-width:52ch}
+.drop.over .drop-in{border-color:var(--accent);background:var(--accent-soft)}
+.rules{margin-top:26px;padding-top:18px;border-top:1px solid var(--line-2);text-align:left;
+ color:var(--muted);font-size:12.5px}
+.rules li{margin:5px 0}
+
+/* ---------- gallery ---------- */
+section.folder{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+ margin-bottom:16px;box-shadow:var(--shadow);scroll-margin-top:14px;overflow:hidden}
+.f-h{display:flex;align-items:center;gap:10px;padding:13px 16px;flex-wrap:wrap;cursor:pointer}
+.f-h .chev{width:9px;height:9px;border-right:1.8px solid var(--muted);
+ border-bottom:1.8px solid var(--muted);transform:rotate(-45deg);transition:transform .18s;flex:none}
+section.folder.open .f-h .chev{transform:rotate(45deg)}
+.f-name{font-weight:640;letter-spacing:-.01em}
+.f-path{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;
+ white-space:nowrap;max-width:100%}
+.f-body{padding:0 16px 16px}
+section.folder:not(.open) .f-body{display:none}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(var(--tile,185px),1fr))}
+figure{margin:0;border:1px solid var(--line);border-radius:11px;overflow:hidden;
+ background:var(--panel-2);cursor:zoom-in;transition:border-color .14s,transform .14s}
+figure:hover{border-color:var(--accent);transform:translateY(-2px)}
+.ph{aspect-ratio:4/3;background:repeating-linear-gradient(45deg,var(--line-2) 0 9px,transparent 9px 18px);
+ display:block;position:relative}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+figcaption{padding:6px 9px;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;
+ text-overflow:ellipsis;border-top:1px solid var(--line-2)}
+.empty{padding:70px 20px;text-align:center;color:var(--muted)}
+.progress{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.5);z-index:60}
+.progress div{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+ padding:20px 28px;box-shadow:var(--shadow)}
+
+/* ---------- lightbox ---------- */
+dialog#lb{border:0;padding:0;background:transparent;max-width:97vw;max-height:97vh}
+dialog#lb::backdrop{background:rgba(4,6,10,.88)}
+.lb-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.lb-box img{display:block;max-width:97vw;max-height:78vh;object-fit:contain;background:#000}
+.lb-bar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line);
+ flex-wrap:wrap}
+.lb-bar .meta{min-width:0;flex:1}
+.lb-bar .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-bar .pt{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:760px){
+  aside{position:absolute;z-index:40;height:calc(100% - 53px);box-shadow:var(--shadow)}
+  .inner{padding:16px 14px 80px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <span class="brand">Image Dataset Explorer</span>
+    <button class="btn" id="toggleTree" title="Show / hide folder tree">&#9776;</button>
+    <button class="btn pri" id="pick">Select folder&hellip;</button>
+    <input type="file" id="fileInput" webkitdirectory directory multiple hidden>
+    <select id="mode" title="How many images to show per folder">
+      <option value="auto">Auto &mdash; 4&ndash;5 per folder</option>
+      <option value="all">All images</option>
+    </select>
+    <button class="btn" id="shuffle" disabled>Reshuffle</button>
+    <input type="search" id="q" placeholder="Filter folders&hellip;" autocomplete="off">
+    <select id="tile" title="Thumbnail size">
+      <option value="130">Small</option>
+      <option value="185" selected>Medium</option>
+      <option value="260">Large</option>
+    </select>
+    <span class="spacer"></span>
+    <span class="chips" id="chips"></span>
+    <button class="btn" id="theme" title="Toggle light / dark">&#9681;</button>
+  </div>
+
+  <div class="body">
+    <aside id="aside" class="hide">
+      <div class="aside-h">
+        <span class="t">Folders</span>
+        <button class="mini" id="expandAll">Expand</button>
+        <button class="mini" id="collapseAll">Collapse</button>
+      </div>
+      <div id="tree"></div>
+    </aside>
+    <main id="main">
+      <div class="drop" id="drop">
+        <div class="drop-in">
+          <h1>Open an image dataset</h1>
+          <p>Pick the root folder of any dataset &mdash; or drag it anywhere onto this window.
+             Every subfolder is scanned and sampled. Nothing is uploaded: files are read locally
+             by your browser and never leave this machine.</p>
+          <button class="btn pri" id="pick2">Select root folder&hellip;</button>
+          <ul class="rules">
+            <li><b>4 or 5 random images</b> are shown from each folder that contains images.</li>
+            <li>If the whole dataset holds <b>fewer than 100 images</b>, every image is shown.</li>
+            <li>Switch to <b>All images</b> at any time, or expand a single folder in place.</li>
+            <li>Supported: jpg, jpeg, png, gif, webp, bmp, tif, tiff, avif, svg.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="inner" id="inner" hidden></div>
+    </main>
+  </div>
+</div>
+
+<dialog id="lb">
+  <div class="lb-box">
+    <img id="lbImg" alt="">
+    <div class="lb-bar">
+      <div class="meta"><div class="nm" id="lbName"></div><div class="pt mono" id="lbPath"></div></div>
+      <button class="btn" id="lbPrev">&larr; Prev</button>
+      <button class="btn" id="lbNext">Next &rarr;</button>
+      <button class="btn" id="lbClose">Close</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+'use strict';
+const IMG_RE = /\.(jpe?g|png|gif|webp|bmp|tiff?|avif|svg)$/i;
+const SMALL_DATASET = 100;          /* < 100 images total  ->  show every image */
+const $ = s => document.querySelector(s);
+
+let ROOT = null;      /* tree root node                     */
+let FILES = [];       /* every image File, index = tile id  */
+let NODES = [];       /* folder nodes that hold images      */
+let TOTAL = 0, showAll = false, query = '';
+const flat = [];      /* lightbox order: {fi, name, path}   */
+
+/* ---------------- tree model ---------------- */
+const natSeg = s => s.split(/(\d+)/).map(t => /^\d+$/.test(t) ? String(t.length).padStart(3,'0')+t : t).join('');
+const natCmp = (a,b) => natSeg(a).localeCompare(natSeg(b), undefined, {sensitivity:'base'});
+const mkNode = (name, path) => ({name, path, dirs:new Map(), files:[], total:0, sample:[], el:null, row:null});
+
+function buildTree(fileList){
+  const root = mkNode('', '');
+  for (const f of fileList){
+    const rel = (f.webkitRelativePath || f._rel || f.name).replace(/\\/g,'/');
+    const parts = rel.split('/');
+    const name = parts.pop();
+    if (!IMG_RE.test(name) || name.startsWith('.')) continue;
+    let cur = root;
+    for (const p of parts){
+      if (!cur.dirs.has(p)) cur.dirs.set(p, mkNode(p, cur.path ? cur.path+'/'+p : p));
+      cur = cur.dirs.get(p);
+    }
+    f._rel = rel;
+    cur.files.push(f);
+  }
+  (function tally(n){
+    n.dirs = new Map([...n.dirs.entries()].sort((a,b) => natCmp(a[0], b[0])));
+    n.files.sort((a,b) => natCmp(a.name, b.name));
+    n.total = n.files.length;
+    for (const c of n.dirs.values()){ tally(c); n.total += c.total; }
+    for (const [k,c] of [...n.dirs]) if (c.total === 0) n.dirs.delete(k);   /* prune empty */
+  })(root);
+  return root;
+}
+
+/* ---------------- sampling ---------------- */
+function resample(){
+  showAll = $('#mode').value === 'all' || TOTAL < SMALL_DATASET;
+  for (const n of NODES){
+    if (showAll || n.forceAll){ n.sample = n.files.slice(); continue; }
+    const k = Math.min(n.files.length, 4 + Math.floor(Math.random()*2));   /* 4 or 5 */
+    const pool = n.files.slice();
+    for (let i = pool.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    n.sample = pool.slice(0, k).sort((a,b) => natCmp(a.name, b.name));
+  }
+}
+
+/* ---------------- lazy object URLs (LRU) ---------------- */
+const live = new Map(), visible = new Set();
+const io = new IntersectionObserver(es => {
+  for (const e of es){
+    const img = e.target;
+    if (e.isIntersecting){ visible.add(img); attach(img); }
+    else visible.delete(img);
+  }
+}, {rootMargin:'500px 0px'});
+
+function attach(img){
+  if (live.has(img)) return;
+  const f = FILES[+img.dataset.fi];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  live.set(img, url);
+  img.src = url;
+  while (live.size > 700){
+    let evicted = false;
+    for (const [old, oldUrl] of live){
+      if (visible.has(old)) continue;
+      URL.revokeObjectURL(oldUrl); old.removeAttribute('src'); live.delete(old);
+      evicted = true; break;
+    }
+    if (!evicted) break;
+  }
+}
+function releaseAll(){
+  for (const url of live.values()) URL.revokeObjectURL(url);
+  live.clear(); visible.clear(); io.disconnect();
+}
+
+/* ---------------- render ---------------- */
+const esc = s => String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const fmt = n => n.toLocaleString('en-US');
+
+function renderGallery(){
+  const inner = $('#inner');
+  inner.innerHTML = '';
+  flat.length = 0;
+  let shown = 0, visFolders = 0;
+
+  for (const n of NODES){
+    const hit = !query || n.path.toLowerCase().includes(query);
+    if (!hit) continue;
+    visFolders++;
+    const sec = document.createElement('section');
+    sec.className = 'folder open';
+    sec.id = 'sec-' + visFolders;
+    n.el = sec;
+    const parts = n.path.split('/');
+    const shownAll = n.sample.length === n.files.length;
+    sec.innerHTML =
+      '<div class="f-h"><span class="chev"></span>' +
+      '<span class="f-name">' + esc(parts[parts.length-1] || '/') + '</span>' +
+      '<span class="chip"><b>' + n.sample.length + '</b>&nbsp;of&nbsp;' + fmt(n.files.length) + '</span>' +
+      (shownAll ? '' : '<button class="mini showall">Show all ' + fmt(n.files.length) + '</button>') +
+      '<span class="spacer"></span><span class="f-path mono">' + esc(n.path) + '</span></div>' +
+      '<div class="f-body"><div class="grid"></div></div>';
+
+    const grid = sec.querySelector('.grid');
+    for (const f of n.sample){
+      const fi = f._fi;
+      const i = flat.length;
+      flat.push({fi, name:f.name, path:f._rel});
+      const fig = document.createElement('figure');
+      fig.dataset.i = i;
+      fig.innerHTML = '<span class="ph"><img data-fi="' + fi + '" alt="' + esc(f.name) + '" ' +
+                      'decoding="async"></span>' +
+                      '<figcaption class="mono" title="' + esc(f.name) + '">' + esc(f.name) + '</figcaption>';
+      grid.append(fig);
+      shown++;
+    }
+    sec.querySelector('.f-h').addEventListener('click', e => {
+      if (e.target.closest('.showall')){
+        n.forceAll = true; n.sample = n.files.slice(); renderGallery();
+        requestAnimationFrame(() => n.el && n.el.scrollIntoView({block:'start'}));
+        return;
+      }
+      sec.classList.toggle('open');
+    });
+    inner.append(sec);
+  }
+
+  if (!visFolders) inner.innerHTML = '<p class="empty">No folder matches &ldquo;' + esc(query) + '&rdquo;.</p>';
+  inner.querySelectorAll('img[data-fi]').forEach(img => io.observe(img));
+  updateChips(shown, visFolders);
+  syncTreeDim();
+}
+
+function renderTree(){
+  const box = $('#tree');
+  box.innerHTML = '';
+  const build = (node, depth) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'tnode' + (depth < 2 ? ' open' : '') + (node.files.length ? ' leafimg' : '');
+    const row = document.createElement('div');
+    row.className = 'trow';
+    row.innerHTML = '<span class="tw">' + (node.dirs.size ? '<i></i>' : '') + '</span>' +
+      '<span class="tname" title="' + esc(node.path || '/') + '">' + esc(node.name || 'root') + '</span>' +
+      '<span class="tcount">' + fmt(node.total) + '</span>';
+    node.row = row;
+    row.addEventListener('click', e => {
+      if (e.target.closest('.tw') && node.dirs.size){ wrap.classList.toggle('open'); return; }
+      if (node.dirs.size && !node.files.length){ wrap.classList.toggle('open'); }
+      if (node.el){
+        node.el.classList.add('open');
+        node.el.scrollIntoView({behavior:'smooth', block:'start'});
+        setActive(row);
+      }
+    });
+    wrap.append(row);
+    if (node.dirs.size){
+      const kids = document.createElement('div');
+      kids.className = 'tkids';
+      for (const c of node.dirs.values()) kids.append(build(c, depth+1));
+      wrap.append(kids);
+    }
+    return wrap;
+  };
+  for (const c of ROOT.dirs.values()) box.append(build(c, 0));
+  if (ROOT.files.length) box.append(build(ROOT, 0));
+}
+function setActive(row){
+  document.querySelectorAll('.trow.active').forEach(r => r.classList.remove('active'));
+  if (row) row.classList.add('active');
+}
+function syncTreeDim(){
+  for (const n of NODES){
+    if (!n.row) continue;
+    const hit = !query || n.path.toLowerCase().includes(query);
+    n.row.parentElement.classList.toggle('dim', !hit);
+  }
+}
+function updateChips(shown, folders){
+  const dirs = (function count(n){ let c = 0; for (const d of n.dirs.values()) c += 1 + count(d); return c; })(ROOT);
+  const mode = TOTAL < SMALL_DATASET
+      ? '<span class="chip mode">All images &mdash; dataset under ' + SMALL_DATASET + '</span>'
+      : (showAll ? '<span class="chip mode">All images</span>'
+                 : '<span class="chip mode">4&ndash;5 per folder</span>');
+  $('#chips').innerHTML = mode +
+    '<span class="chip"><b>' + fmt(folders) + '</b> image folders</span>' +
+    '<span class="chip"><b>' + fmt(dirs) + '</b> folders</span>' +
+    '<span class="chip"><b>' + fmt(shown) + '</b> shown of <b>' + fmt(TOTAL) + '</b></span>' +
+    (showAll && TOTAL > 4000 ? '<span class="chip warn">Large &mdash; may be slow</span>' : '');
+}
+
+/* ---------------- load ---------------- */
+function load(fileList){
+  releaseAll();
+  const busy = document.createElement('div');
+  busy.className = 'progress';
+  busy.innerHTML = '<div>Scanning ' + fmt(fileList.length) + ' files&hellip;</div>';
+  document.body.append(busy);
+
+  setTimeout(() => {
+    ROOT = buildTree(fileList);
+    FILES = []; NODES = [];
+    (function walk(n){
+      if (n.files.length){ NODES.push(n); for (const f of n.files){ f._fi = FILES.length; FILES.push(f); } }
+      for (const c of n.dirs.values()) walk(c);
+    })(ROOT);
+    TOTAL = FILES.length;
+    busy.remove();
+
+    if (!TOTAL){
+      alert('No image files were found in that folder.');
+      return;
+    }
+    $('#drop').hidden = true;
+    $('#inner').hidden = false;
+    $('#aside').classList.remove('hide');
+    $('#shuffle').disabled = false;
+    resample();
+    renderTree();
+    renderGallery();
+    $('#main').scrollTop = 0;
+  }, 30);
+}
+
+/* ---------------- drag & drop of a folder ---------------- */
+async function walkEntry(entry, prefix, out){
+  if (entry.isFile){
+    const file = await new Promise((res, rej) => entry.file(res, rej));
+    file._rel = prefix + file.name;
+    out.push(file);
+    return;
+  }
+  const reader = entry.createReader();
+  for (;;){
+    const batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+    if (!batch.length) break;
+    for (const e of batch) await walkEntry(e, prefix + entry.name + '/', out);
+  }
+}
+const drop = $('#drop');
+['dragenter','dragover'].forEach(ev => addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add('over');
+}));
+['dragleave','drop'].forEach(ev => addEventListener(ev, e => {
+  if (ev === 'dragleave' && e.relatedTarget) return;
+  drop.classList.remove('over');
+}));
+addEventListener('drop', async e => {
+  e.preventDefault();
+  const entries = [...e.dataTransfer.items]
+      .map(it => it.webkitGetAsEntry && it.webkitGetAsEntry()).filter(Boolean);
+  if (!entries.length) return;
+  const out = [];
+  for (const en of entries) await walkEntry(en, '', out);
+  if (out.length) load(out);
+});
+
+/* ---------------- controls ---------------- */
+$('#fileInput').addEventListener('change', e => { if (e.target.files.length) load([...e.target.files]); });
+const openPicker = () => $('#fileInput').click();
+$('#pick').onclick = openPicker;
+$('#pick2').onclick = openPicker;
+$('#shuffle').onclick = () => { NODES.forEach(n => n.forceAll = false); resample(); renderGallery(); };
+$('#mode').onchange = () => { NODES.forEach(n => n.forceAll = false); resample(); renderGallery(); };
+$('#tile').onchange = e => document.documentElement.style.setProperty('--tile', e.target.value + 'px');
+$('#toggleTree').onclick = () => $('#aside').classList.toggle('hide');
+$('#expandAll').onclick = () => document.querySelectorAll('.tnode').forEach(n => n.classList.add('open'));
+$('#collapseAll').onclick = () => document.querySelectorAll('.tnode').forEach(n => n.classList.remove('open'));
+$('#theme').onclick = () => {
+  const cur = document.documentElement.dataset.theme ||
+              (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light');
+  document.documentElement.dataset.theme = cur === 'dark' ? 'light' : 'dark';
+};
+let t;
+$('#q').addEventListener('input', e => {
+  clearTimeout(t);
+  t = setTimeout(() => { query = e.target.value.trim().toLowerCase(); if (ROOT) renderGallery(); }, 160);
+});
+
+/* ---------------- lightbox ---------------- */
+const lb = $('#lb'), lbImg = $('#lbImg');
+let lbUrl = null, idx = 0;
+function show(i){
+  if (!flat.length) return;
+  idx = (i + flat.length) % flat.length;
+  const it = flat[idx];
+  if (lbUrl) URL.revokeObjectURL(lbUrl);
+  lbUrl = URL.createObjectURL(FILES[it.fi]);
+  lbImg.src = lbUrl; lbImg.alt = it.name;
+  $('#lbName').textContent = it.name;
+  $('#lbPath').textContent = it.path;
+  if (!lb.open) lb.showModal();
+}
+$('#inner').addEventListener('click', e => {
+  const fig = e.target.closest('figure');
+  if (fig) show(+fig.dataset.i);
+});
+$('#lbPrev').onclick = () => show(idx - 1);
+$('#lbNext').onclick = () => show(idx + 1);
+$('#lbClose').onclick = () => lb.close();
+lb.addEventListener('click', e => { if (e.target === lb) lb.close(); });
+lb.addEventListener('close', () => {
+  if (lbUrl){ URL.revokeObjectURL(lbUrl); lbUrl = null; }
+  lbImg.removeAttribute('src');
+});
+addEventListener('keydown', e => {
+  if (!lb.open) return;
+  if (e.key === 'ArrowLeft') show(idx - 1);
+  if (e.key === 'ArrowRight') show(idx + 1);
+});
+
+/* scroll-spy: highlight the folder currently in view */
+const spy = new IntersectionObserver(es => {
+  for (const e of es) if (e.isIntersecting){
+    const n = NODES.find(x => x.el === e.target);
+    if (n && n.row){
+      setActive(n.row);
+      let p = n.row.parentElement.parentElement;
+      while (p && p.classList){ if (p.classList.contains('tnode')) p.classList.add('open'); p = p.parentElement; }
+    }
+    break;
+  }
+}, {root:$('#main'), rootMargin:'-10% 0px -75% 0px'});
+const origRender = renderGallery;
+renderGallery = function(){ spy.disconnect(); origRender(); NODES.forEach(n => n.el && spy.observe(n.el)); };
+</script>
+</body>
+</html>
