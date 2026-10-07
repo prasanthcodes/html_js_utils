@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NPY / NPZ Viewer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>NPY / NPZ Viewer</h1>
+    <label class="btn primary">
+      Open file…
+      <input type="file" id="fileInput" accept=".npy,.npz" hidden>
+    </label>
+    <span id="fileName" class="muted"></span>
+  </header>
+
+  <main class="layout">
+    <aside id="sidebar" class="sidebar hidden">
+      <h2>Arrays</h2>
+      <ul id="arrayList"></ul>
+    </aside>
+
+    <section class="content">
+      <div id="error" class="error hidden"></div>
+
+      <div id="dropZone" class="dropzone">
+        <p><strong>Drop a .npy or .npz file here</strong>, or use “Open file…”.</p>
+        <p class="muted">Files are read locally in your browser — nothing is uploaded.</p>
+      </div>
+
+      <div id="viewer" class="hidden">
+        <div id="arrayInfo" class="info"></div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Dimensions</h3>
+            <span class="muted small">Pick which axis goes down the rows and which across the columns; fix an index for every other axis. Ranges are start (inclusive) : stop (exclusive) : step, negatives count from the end.</span>
+          </div>
+          <div class="dims-wrap">
+            <table id="dimTable" class="dims"></table>
+          </div>
+          <div class="options">
+            <button id="swapBtn" class="btn" type="button" title="Swap row and column axes">⇄ Swap rows / columns</button>
+            <label>Decimals
+              <input id="decimals" type="number" min="0" max="20" placeholder="full" class="narrow">
+            </label>
+            <label>Rows per page
+              <select id="pageSize">
+                <option>100</option>
+                <option selected>500</option>
+                <option>1000</option>
+                <option>5000</option>
+              </select>
+            </label>
+            <label class="check">
+              <input id="includeLabels" type="checkbox" checked> Index labels in CSV
+            </label>
+            <span class="spacer"></span>
+            <button id="exportBtn" class="btn primary" type="button">⬇ Export CSV</button>
+          </div>
+        </div>
+
+        <div class="slice-bar">
+          <code id="sliceExpr"></code>
+          <span id="sliceSize" class="muted"></span>
+        </div>
+
+        <details class="panel stats-panel" open>
+          <summary><h3>Statistics</h3> <span id="statsStatus" class="muted small"></span></summary>
+          <div id="statsBody" class="stats-wrap"></div>
+        </details>
+
+        <div id="tabs" class="tabs" role="tablist">
+          <button class="tab active" data-tab="table" role="tab" aria-selected="true">Table</button>
+          <button class="tab" data-tab="line" role="tab" aria-selected="false">Line plot</button>
+          <button class="tab" data-tab="image" role="tab" aria-selected="false">Image</button>
+        </div>
+
+        <!-- table view -->
+        <div id="tablePane" class="pane">
+          <div id="notice" class="notice hidden"></div>
+          <div id="tableWrap" class="table-wrap"></div>
+          <div class="pager">
+            <button id="firstBtn" class="btn" type="button">«</button>
+            <button id="prevBtn" class="btn" type="button">‹ Prev</button>
+            <span id="pageInfo"></span>
+            <button id="nextBtn" class="btn" type="button">Next ›</button>
+            <button id="lastBtn" class="btn" type="button">»</button>
+          </div>
+        </div>
+
+        <!-- line plot view -->
+        <div id="linePane" class="pane hidden">
+          <div class="plot-card">
+            <div id="lineLegend" class="legend"></div>
+            <div id="lineBox" class="plot-box">
+              <canvas id="lineCanvas"></canvas>
+            </div>
+            <div id="lineNote" class="muted small"></div>
+          </div>
+        </div>
+
+        <!-- image view -->
+        <div id="imagePane" class="pane hidden">
+          <div class="plot-card">
+            <div class="plot-controls">
+              <label>Mode <select id="imgMode"><option value="map">Colormap (value per cell)</option></select></label>
+              <label>Colormap
+                <select id="cmap">
+                  <option value="blue">Blue (sequential)</option>
+                  <option value="gray">Grayscale</option>
+                  <option value="diverging">Blue–red (diverging, centered on 0)</option>
+                </select>
+              </label>
+              <label>Min <input id="vmin" type="number" step="any" placeholder="auto"></label>
+              <label>Max <input id="vmax" type="number" step="any" placeholder="auto"></label>
+              <label>Aspect
+                <select id="aspect">
+                  <option value="auto">Auto</option>
+                  <option value="square">Square pixels</option>
+                  <option value="stretch">Stretch to fill</option>
+                </select>
+              </label>
+            </div>
+            <div id="imgBox" class="plot-box img-box">
+              <canvas id="imgCanvas"></canvas>
+              <div id="imgMsg" class="empty hidden"></div>
+            </div>
+            <div id="colorbar" class="colorbar">
+              <div id="cbRamp" class="cb-ramp"></div>
+              <div class="cb-labels"><span id="cbMin"></span><span id="cbMid"></span><span id="cbMax"></span></div>
+            </div>
+            <div id="imgNote" class="muted small"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="tooltip" class="tooltip hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>

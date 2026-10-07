@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XML Viewer</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #6b7385;
+    --border: #e1e4ea; --accent: #2f6fde; --accent-soft: #e8f0fd;
+    --row-alt: #fafbfc; --hover: #f1f4f9;
+    --tag: #a3326b; --attr: #b05a00; --val: #1f7a3a; --txt: #1d2330;
+    --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c; --panel: #1b1f26; --text: #e2e6ee; --muted: #8b93a5;
+      --border: #2c323d; --accent: #6aa0ff; --accent-soft: #22304a;
+      --row-alt: #1f242c; --hover: #262c36;
+      --tag: #f08dbb; --attr: #f2b36b; --val: #7ed49a; --txt: #e2e6ee;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 16px; margin: 0 12px 0 0; font-weight: 600; }
+  header .spacer { flex: 1; }
+  button, select, input[type=search] {
+    font: inherit; color: var(--text); background: var(--panel);
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px;
+  }
+  button { cursor: pointer; }
+  button:hover { background: var(--hover); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:hover { filter: brightness(1.08); }
+  button:disabled { opacity: .5; cursor: default; }
+  label.chk { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); cursor: pointer; }
+
+  main { flex: 1; display: flex; min-height: 0; }
+  aside {
+    width: 340px; min-width: 200px; max-width: 70vw; resize: horizontal; overflow: hidden;
+    background: var(--panel); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+  }
+  .section-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+    padding: 10px 12px 4px;
+  }
+  #fileList { list-style: none; margin: 0; padding: 0 6px 6px; max-height: 30%; overflow: auto; }
+  #fileList li {
+    padding: 4px 8px; border-radius: 5px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #fileList li:hover { background: var(--hover); }
+  #fileList li.active { background: var(--accent-soft); color: var(--accent); }
+  #fileList li .err { color: #d33; font-size: 12px; }
+  #treeSearch { margin: 4px 10px 6px; }
+  #tree { flex: 1; overflow: auto; padding: 0 6px 12px; font-family: var(--mono); font-size: 13px; }
+  .node { padding-left: 14px; }
+  .node > .line {
+    display: flex; align-items: baseline; gap: 4px; cursor: pointer; padding: 1px 4px; border-radius: 4px;
+    margin-left: -14px; white-space: nowrap;
+  }
+  .node > .line:hover { background: var(--hover); }
+  .node > .line.selected { background: var(--accent-soft); outline: 1px solid var(--accent); }
+  .node > .line.match .tname { background: #ffe066; color: #000; border-radius: 2px; }
+  .twisty { width: 12px; display: inline-block; color: var(--muted); flex: none; text-align: center; }
+  .tname { color: var(--tag); }
+  .tattr { color: var(--attr); }
+  .tcount { color: var(--muted); font-size: 11px; }
+  .tval { color: var(--muted); overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+
+  #content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 16px;
+    border-bottom: 1px solid var(--border); background: var(--panel);
+  }
+  .toolbar .path { font-family: var(--mono); font-size: 12px; color: var(--muted); flex-basis: 100%; overflow-wrap: anywhere; }
+  .tabs { display: flex; gap: 2px; }
+  .tabs button { border-radius: 6px; }
+  .tabs button.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  #stats { color: var(--muted); font-size: 12px; margin-left: auto; }
+
+  #view { flex: 1; overflow: auto; position: relative; }
+  .empty {
+    height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--muted); gap: 10px; text-align: center; padding: 20px;
+  }
+  .drop-hint { border: 2px dashed var(--border); border-radius: 12px; padding: 40px 50px; }
+  body.dragging .drop-hint { border-color: var(--accent); color: var(--accent); }
+
+  table { border-collapse: separate; border-spacing: 0; font-size: 13px; min-width: 100%; }
+  th, td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 5px 9px; text-align: left; vertical-align: top; }
+  th {
+    position: sticky; top: 0; z-index: 1; background: var(--panel); font-weight: 600; cursor: pointer;
+    white-space: nowrap; user-select: none;
+  }
+  th:hover { background: var(--hover); }
+  th .sort { color: var(--accent); font-size: 10px; margin-left: 4px; }
+  th.idx, td.idx { color: var(--muted); text-align: right; position: sticky; left: 0; background: var(--panel); z-index: 0; }
+  th.idx { z-index: 2; }
+  tbody tr:nth-child(even) td { background: var(--row-alt); }
+  tbody tr:hover td { background: var(--hover); }
+  td .cell { max-width: 420px; max-height: 4.4em; overflow: hidden; white-space: pre-wrap; word-break: break-word; }
+  td.expanded .cell { max-height: none; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .hl { background: #ffe066; color: #000; border-radius: 2px; }
+
+  pre.raw { margin: 0; padding: 14px 16px; font-family: var(--mono); font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+  pre.raw .t { color: var(--tag); } pre.raw .a { color: var(--attr); } pre.raw .v { color: var(--val); }
+  pre.raw .c { color: var(--muted); font-style: italic; }
+
+  #colMenu {
+    position: absolute; z-index: 10; background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18); padding: 8px; max-height: 60vh; overflow: auto; min-width: 220px;
+  }
+  #colMenu label { display: flex; gap: 6px; padding: 3px 4px; cursor: pointer; font-family: var(--mono); font-size: 12px; }
+  #colMenu .acts { display: flex; gap: 6px; margin-bottom: 6px; }
+  #colMenu .acts button { font-size: 12px; padding: 2px 8px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>XML Viewer</h1>
+  <button class="primary" id="openBtn">Open XML files…</button>
+  <input type="file" id="fileInput" accept=".xml,text/xml,application/xml" multiple hidden>
+  <span style="color:var(--muted);font-size:12px">or drag &amp; drop files anywhere</span>
+  <span class="spacer"></span>
+</header>
+
+<main>
+  <aside>
+    <div class="section-title">Files</div>
+    <ul id="fileList"></ul>
+    <div class="section-title">Structure</div>
+    <input type="search" id="treeSearch" placeholder="Find tag / attribute / text…">
+    <div id="tree"></div>
+  </aside>
+
+  <section id="content">
+    <div class="toolbar" id="toolbar" hidden>
+      <div class="tabs">
+        <button id="tabTable" class="on">Table</button>
+        <button id="tabRaw">XML</button>
+      </div>
+      <span id="tableOpts">
+        <label class="chk" title="Element that becomes one row">Rows:
+          <select id="rowTag"></select>
+        </label>
+        <label class="chk" title="Collect matching rows from every loaded file"><input type="checkbox" id="allFiles"> all files</label>
+        <label class="chk" title="Add attributes of ancestor elements as columns"><input type="checkbox" id="ctxCols"> parent attrs</label>
+        <input type="search" id="filter" placeholder="Filter rows…">
+        <button id="colsBtn">Columns ▾</button>
+        <button class="primary" id="csvBtn">Export CSV</button>
+      </span>
+      <span id="stats"></span>
+      <div class="path" id="path"></div>
+    </div>
+    <div id="view">
+      <div class="empty">
+        <div class="drop-hint">
+          <div style="font-size:30px">⇩</div>
+          <div>Drop XML files here or use <b>Open XML files…</b></div>
+        </div>
+        <div style="font-size:12px;max-width:460px">Select any element in the tree to see it as a table — repeated children become rows, nested
+          values and attributes become columns. Export what you see to CSV.</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const state = {
+    files: [],          // {name, doc, text, error}
+    fileIdx: -1,
+    selected: null,     // Element
+    view: 'table',
+    table: null,        // {cols, rows}
+    sort: { col: null, dir: 1 },
+    hiddenCols: new Set(),
+  };
+
+  /* ---------- file loading ---------- */
+  $('openBtn').onclick = () => $('fileInput').click();
+  $('fileInput').onchange = (e) => { loadFiles(e.target.files); e.target.value = ''; };
+  let dragDepth = 0;
+  window.addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; document.body.classList.add('dragging'); });
+  window.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dragging'); } });
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => {
+    e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging');
+    loadFiles(e.dataTransfer.files);
+  });
+
+  async function loadFiles(list) {
+    const arr = [...list].filter(f => /\.xml$/i.test(f.name) || /xml/.test(f.type));
+    if (!arr.length) return;
+    const firstNew = state.files.length;
+    for (const f of arr) {
+      const text = await f.text();
+      const doc = new DOMParser().parseFromString(text, 'application/xml');
+      const pe = doc.getElementsByTagName('parsererror')[0];
+      const existing = state.files.findIndex(x => x.name === f.name);
+      const entry = { name: f.name, text, doc: pe ? null : doc, error: pe ? pe.textContent.trim().split('\n')[0] : null };
+      if (existing >= 0) state.files[existing] = entry; else state.files.push(entry);
+    }
+    renderFileList();
+    selectFile(Math.min(firstNew, state.files.length - 1));
+  }
+
+  function renderFileList() {
+    const ul = $('fileList'); ul.innerHTML = '';
+    state.files.forEach((f, i) => {
+      const li = document.createElement('li');
+      li.title = f.name;
+      li.innerHTML = `<span>${esc(f.name)}</span>` + (f.error ? '<span class="err">parse error</span>' : '');
+      if (i === state.fileIdx) li.className = 'active';
+      li.onclick = () => selectFile(i);
+      ul.appendChild(li);
+    });
+  }
+
+  function selectFile(i) {
+    state.fileIdx = i;
+    renderFileList();
+    const f = state.files[i];
+    $('tree').innerHTML = '';
+    $('toolbar').hidden = false;
+    if (!f.doc) {
+      state.selected = null;
+      $('view').innerHTML = `<div class="empty"><b>Could not parse ${esc(f.name)}</b><div>${esc(f.error)}</div></div>`;
+      return;
+    }
+    $('tree').appendChild(buildNode(f.doc.documentElement, 0));
+    selectElement(f.doc.documentElement);
+  }
+
+  /* ---------- tree ---------- */
+  const elChildren = (el) => [...el.children];
+  const directText = (el) => [...el.childNodes].filter(n => n.nodeType === 3 || n.nodeType === 4).map(n => n.nodeValue).join('').trim();
+
+  function buildNode(el, depth) {
+    const wrap = document.createElement('div');
+    wrap.className = 'node';
+    wrap._el = el;
+    el._node = wrap;
+    const kids = elChildren(el);
+    const line = document.createElement('div');
+    line.className = 'line';
+    const attrs = [...el.attributes].slice(0, 2).map(a => ` <span class="tattr">${esc(a.name)}="${esc(trunc(a.value, 24))}"</span>`).join('');
+    const txt = kids.length ? '' : directText(el);
+    line.innerHTML =
+      `<span class="twisty">${kids.length ? '▸' : ''}</span>` +
+      `<span class="tname">${esc(el.tagName)}</span>${attrs}` +
+      (kids.length ? ` <span class="tcount">(${kids.length})</span>` : '') +
+      (txt ? ` <span class="tval">${esc(trunc(txt, 60))}</span>` : '');
+    wrap.appendChild(line);
+    line.onclick = (e) => {
+      if (e.target.classList.contains('twisty')) toggle(wrap);
+      else { selectElement(el); if (!wrap._open) toggle(wrap); }
+    };
+    if (kids.length && depth < 1) toggle(wrap);
+    return wrap;
+  }
+
+  function toggle(wrap, forceOpen) {
+    const kids = elChildren(wrap._el);
+    if (!kids.length) return;
+    const open = forceOpen ?? !wrap._open;
+    if (open === !!wrap._open) return;
+    wrap._open = open;
+    wrap.firstChild.querySelector('.twisty').textContent = open ? '▾' : '▸';
+    if (open) {
+      if (!wrap._kidsBox) {
+        const box = document.createElement('div');
+        const LIMIT = 500;
+        kids.slice(0, LIMIT).forEach(k => box.appendChild(buildNode(k, 99)));
+        if (kids.length > LIMIT) {
+          const more = document.createElement('div');
+          more.className = 'node'; more.style.color = 'var(--muted)';
+          more.textContent = `… ${kids.length - LIMIT} more (select parent to see all in the table)`;
+          box.appendChild(more);
+        }
+        wrap._kidsBox = box;
+        wrap.appendChild(box);
+      }
+      wrap._kidsBox.hidden = false;
+    } else if (wrap._kidsBox) wrap._kidsBox.hidden = true;
+  }
+
+  function revealInTree(el) {
+    const chain = [];
+    for (let e = el; e && e.nodeType === 1; e = e.parentNode) chain.unshift(e);
+    for (const e of chain.slice(0, -1)) if (e._node) toggle(e._node, true);
+    if (el._node) el._node.firstChild.scrollIntoView({ block: 'nearest' });
+  }
+
+  $('treeSearch').oninput = debounce(() => {
+    const q = $('treeSearch').value.trim().toLowerCase();
+    document.querySelectorAll('#tree .line.match').forEach(l => l.classList.remove('match'));
+    const f = state.files[state.fileIdx];
+    if (!q || !f || !f.doc) return;
+    let first = null, n = 0;
+    for (const el of f.doc.getElementsByTagName('*')) {
+      const hay = (el.tagName + ' ' + [...el.attributes].map(a => a.name + ' ' + a.value).join(' ') + ' ' + directText(el)).toLowerCase();
+      if (hay.includes(q)) {
+        if (n++ < 200) { revealInTree(el); el._node && el._node.firstChild.classList.add('match'); }
+        first = first || el;
+      }
+    }
+    if (first) revealInTree(first);
+  }, 250);
+
+  /* ---------- selection ---------- */
+  function selectElement(el) {
+    document.querySelectorAll('#tree .line.selected').forEach(l => l.classList.remove('selected'));
+    state.selected = el;
+    if (el._node) el._node.firstChild.classList.add('selected');
+    $('path').textContent = pathOf(el);
+    fillRowTagOptions(el);
+    state.sort = { col: null, dir: 1 };
+    state.hiddenCols.clear();
+    render();
+  }
+
+  function pathOf(el) {
+    const parts = [];
+    for (let e = el; e && e.nodeType === 1; e = e.parentNode) {
+      const sibs = e.parentNode && e.parentNode.nodeType === 1 ? elChildren(e.parentNode).filter(s => s.tagName === e.tagName) : [e];
+      parts.unshift(e.tagName + (sibs.length > 1 ? `[${sibs.indexOf(e) + 1}]` : ''));
+    }
+    return '/' + parts.join('/');
+  }
+
+  // Row-tag choices: "(this element)", direct children tags, and any deeper repeated tag.
+  function fillRowTagOptions(el) {
+    const sel = $('rowTag');
+    const counts = new Map();
+    for (const d of el.getElementsByTagName('*')) counts.set(d.tagName, (counts.get(d.tagName) || 0) + 1);
+    const direct = new Map();
+    for (const k of elChildren(el)) direct.set(k.tagName, (direct.get(k.tagName) || 0) + 1);
+
+    // Default: most repeated direct-child tag; else most repeated descendant with count>1; else self.
+    let def = '__self__', best = 1;
+    for (const [t, c] of direct) if (c > best) { best = c; def = t; }
+    if (def === '__self__') for (const [t, c] of counts) if (c > best && elChildren(el).length) { best = c; def = t; }
+
+    const opts = [`<option value="__self__">${esc(el.tagName)} (this element, 1 row)</option>`];
+    if (direct.size) opts.push(`<option value="__children__">all child elements (${elChildren(el).length})</option>`);
+    [...counts.entries()].sort((a, b) => b[1] - a[1]).forEach(([t, c]) =>
+      opts.push(`<option value="${esc(t)}">${esc(t)} (${c})${direct.has(t) ? '' : ' – nested'}</option>`));
+    sel.innerHTML = opts.join('');
+    sel.value = def;
+  }
+
+  /* ---------- flatten to 2D ---------- */
+  // Collects {column: value} for one row element. Nested leaf paths are joined with '/',
+  // attributes are prefixed '@', and repeated paths are joined with ' | '.
+  function flatten(el) {
+    const rec = new Map();
+    const put = (k, v) => {
+      if (v === '') return;
+      rec.set(k, rec.has(k) ? rec.get(k) + ' | ' + v : v);
+    };
+    const walk = (e, prefix) => {
+      for (const a of e.attributes) put((prefix ? prefix + '/' : '') + '@' + a.name, a.value);
+      const kids = elChildren(e);
+      const t = directText(e);
+      if (!kids.length) { put(prefix || '#text', t); return; }
+      if (t) put((prefix ? prefix + '/' : '') + '#text', t);
+      for (const k of kids) walk(k, (prefix ? prefix + '/' : '') + k.tagName);
+    };
+    walk(el, '');
+    return rec;
+  }
+
+  function rowElements(root, tag) {
+    if (tag === '__self__') return [root];
+    if (tag === '__children__') return elChildren(root);
+    // Outermost matches only, so nested same-name elements don't double count.
+    const out = [];
+    const walk = (e) => { for (const k of elChildren(e)) { if (k.tagName === tag) out.push(k); else walk(k); } };
+    walk(root);
+    return out;
+  }
+
+  function ancestorAttrs(el, stopAt) {
+    const m = new Map();
+    for (let e = el.parentNode; e && e.nodeType === 1; e = e.parentNode) {
+      for (const a of e.attributes) { const k = `${e.tagName}@${a.name}`; if (!m.has(k)) m.set(k, a.value); }
+      if (e === stopAt && !$('allFiles').checked) break;
+    }
+    return m;
+  }
+
+  function buildTable() {
+    const tag = $('rowTag').value;
+    const multi = $('allFiles').checked && state.files.filter(f => f.doc).length > 1;
+    const ctx = $('ctxCols').checked;
+    const sources = multi
+      ? state.files.filter(f => f.doc).map(f => ({ file: f.name, root: f.doc.documentElement }))
+      : [{ file: state.files[state.fileIdx].name, root: state.selected }];
+
+    const cols = [], seen = new Set(), rows = [];
+    const addCol = (c) => { if (!seen.has(c)) { seen.add(c); cols.push(c); } };
+    if (multi) addCol('_file');
+    for (const s of sources) {
+      for (const el of rowElements(s.root, tag)) {
+        const r = new Map();
+        if (multi) r.set('_file', s.file);
+        if (ctx) for (const [k, v] of ancestorAttrs(el, s.root)) { r.set(k, v); }
+        if (tag === '__children__') r.set('_tag', el.tagName);
+        for (const [k, v] of flatten(el)) r.set(k, v);
+        rows.push(r);
+      }
+    }
+    // Column order: _file, _tag, context cols, then first-seen order of fields.
+    if (tag === '__children__') addCol('_tag');
+    if (ctx) rows.forEach(r => r.forEach((_, k) => { if (/^[^/@]+@/.test(k)) addCol(k); }));
+    rows.forEach(r => r.forEach((_, k) => addCol(k)));
+    const numeric = new Set(cols.filter(c => {
+      let any = false;
+      for (const r of rows) { const v = r.get(c); if (v == null || v === '') continue; if (!/^-?\d+(\.\d+)?$/.test(v.trim())) return false; any = true; }
+      return any;
+    }));
+    return { cols, rows, numeric };
+  }
+
+  /* ---------- rendering ---------- */
+  function render() {
+    if (!state.selected && !$('allFiles').checked) return;
+    $('tabTable').classList.toggle('on', state.view === 'table');
+    $('tabRaw').classList.toggle('on', state.view === 'raw');
+    $('tableOpts').classList.toggle('hidden', state.view !== 'table');
+    if (state.view === 'raw') return renderRaw();
+    state.table = buildTable();
+    renderTable();
+  }
+
+  function visibleRows() {
+    const { cols, rows } = state.table;
+    const q = $('filter').value.trim().toLowerCase();
+    let out = q ? rows.filter(r => cols.some(c => (r.get(c) || '').toLowerCase().includes(q))) : rows.slice();
+    const { col, dir } = state.sort;
+    if (col) {
+      const num = state.table.numeric.has(col);
+      out.sort((a, b) => {
+        const x = a.get(col) ?? '', y = b.get(col) ?? '';
+        if (x === '' && y !== '') return 1;
+        if (y === '' && x !== '') return -1;
+        return (num ? parseFloat(x) - parseFloat(y) : x.localeCompare(y, undefined, { numeric: true })) * dir;
+      });
+    }
+    return out;
+  }
+
+  function visibleCols() { return state.table.cols.filter(c => !state.hiddenCols.has(c)); }
+
+  function renderTable() {
+    const view = $('view');
+    const cols = visibleCols();
+    const rows = visibleRows();
+    const q = $('filter').value.trim();
+    $('stats').textContent = `${rows.length}${rows.length !== state.table.rows.length ? ' of ' + state.table.rows.length : ''} rows × ${cols.length} columns`;
+    $('csvBtn').disabled = !rows.length;
+    if (!state.table.rows.length) {
+      view.innerHTML = '<div class="empty">No rows for this selection.</div>';
+      return;
+    }
+    const MAX = 5000;
+    const shown = rows.slice(0, MAX);
+    const head = '<tr><th class="idx">#</th>' + cols.map(c =>
+      `<th data-col="${esc(c)}" title="${esc(c)}">${esc(c)}${state.sort.col === c ? `<span class="sort">${state.sort.dir > 0 ? '▲' : '▼'}</span>` : ''}</th>`).join('') + '</tr>';
+    const body = shown.map((r, i) => '<tr><td class="idx">' + (i + 1) + '</td>' + cols.map(c => {
+      const v = r.get(c) ?? '';
+      return `<td${state.table.numeric.has(c) ? ' class="num"' : ''}><div class="cell">${highlight(v, q)}</div></td>`;
+    }).join('') + '</tr>').join('');
+    view.innerHTML = `<table><thead>${head}</thead><tbody>${body}</tbody></table>` +
+      (rows.length > MAX ? `<div class="empty" style="height:auto">Showing first ${MAX} rows — CSV export includes all ${rows.length}.</div>` : '');
+    view.querySelectorAll('th[data-col]').forEach(th => th.onclick = () => {
+      const c = th.dataset.col;
+      state.sort = state.sort.col === c ? (state.sort.dir > 0 ? { col: c, dir: -1 } : { col: null, dir: 1 }) : { col: c, dir: 1 };
+      renderTable();
+    });
+    view.querySelector('tbody').onclick = (e) => {
+      const td = e.target.closest('td'); if (td && !td.classList.contains('idx')) td.classList.toggle('expanded');
+    };
+  }
+
+  function renderRaw() {
+    const el = state.selected;
+    $('stats').textContent = '';
+    if (!el) return;
+    let xml = new XMLSerializer().serializeToString(el);
+    const big = xml.length > 2_000_000;
+    if (big) xml = xml.slice(0, 2_000_000);
+    $('view').innerHTML = `<pre class="raw">${highlightXml(xml)}${big ? '\n\n… truncated' : ''}</pre>`;
+  }
+
+  function highlightXml(s) {
+    return esc(s)
+      .replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span class="c">$1</span>')
+      .replace(/(&lt;\/?)([\w:.-]+)((?:\s+[\w:.-]+=(?:&quot;[^]*?&quot;|'[^']*'))*)(\s*\/?&gt;)/g, (m, open, name, attrs, close) =>
+        `${open}<span class="t">${name}</span>` +
+        attrs.replace(/([\w:.-]+)=(&quot;[^]*?&quot;|'[^']*')/g, '<span class="a">$1</span>=<span class="v">$2</span>') + close);
+  }
+
+  /* ---------- column menu ---------- */
+  $('colsBtn').onclick = (e) => {
+    e.stopPropagation();
+    let menu = $('colMenu');
+    if (menu) { menu.remove(); return; }
+    menu = document.createElement('div');
+    menu.id = 'colMenu';
+    menu.innerHTML = '<div class="acts"><button data-a="all">All</button><button data-a="none">None</button></div>' +
+      state.table.cols.map(c => `<label><input type="checkbox" value="${esc(c)}" ${state.hiddenCols.has(c) ? '' : 'checked'}>${esc(c)}</label>`).join('');
+    const r = $('colsBtn').getBoundingClientRect();
+    menu.style.left = Math.max(8, Math.min(r.left, innerWidth - 260)) + 'px';
+    menu.style.top = r.bottom + 4 + 'px';
+    menu.style.position = 'fixed';
+    document.body.appendChild(menu);
+    menu.onclick = (ev) => ev.stopPropagation();
+    menu.onchange = (ev) => {
+      const c = ev.target.value;
+      ev.target.checked ? state.hiddenCols.delete(c) : state.hiddenCols.add(c);
+      renderTable();
+    };
+    menu.querySelectorAll('.acts button').forEach(b => b.onclick = () => {
+      const all = b.dataset.a === 'all';
+      state.table.cols.forEach(c => all ? state.hiddenCols.delete(c) : state.hiddenCols.add(c));
+      menu.querySelectorAll('input').forEach(i => i.checked = all);
+      renderTable();
+    });
+  };
+  document.addEventListener('click', () => { const m = $('colMenu'); if (m) m.remove(); });
+
+  /* ---------- CSV ---------- */
+  $('csvBtn').onclick = () => {
+    const cols = visibleCols();
+    const rows = visibleRows();
+    const q = (v) => {
+      v = v == null ? '' : String(v);
+      return /[",\r\n]/.test(v) || /^\s|\s$/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+    };
+    const lines = [cols.map(q).join(',')].concat(rows.map(r => cols.map(c => q(r.get(c))).join(',')));
+    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const f = state.files[state.fileIdx];
+    const tag = $('rowTag').value.replace(/^__|__$/g, '');
+    const base = $('allFiles').checked ? 'all_files' : f.name.replace(/\.xml$/i, '');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${base}_${tag === 'self' ? state.selected.tagName : tag}.csv`.replace(/[^\w.-]+/g, '_');
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+
+  /* ---------- controls ---------- */
+  $('tabTable').onclick = () => { state.view = 'table'; render(); };
+  $('tabRaw').onclick = () => { state.view = 'raw'; render(); };
+  $('rowTag').onchange = () => { state.sort = { col: null, dir: 1 }; state.hiddenCols.clear(); render(); };
+  $('allFiles').onchange = $('ctxCols').onchange = () => { state.hiddenCols.clear(); render(); };
+  $('filter').oninput = debounce(() => state.table && renderTable(), 200);
+
+  /* ---------- utils ---------- */
+  function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  function trunc(s, n) { s = s.replace(/\s+/g, ' '); return s.length > n ? s.slice(0, n) + '…' : s; }
+  function highlight(v, q) {
+    if (!q) return esc(v);
+    const i = v.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return esc(v);
+    return esc(v.slice(0, i)) + '<span class="hl">' + esc(v.slice(i, i + q.length)) + '</span>' + esc(v.slice(i + q.length));
+  }
+  function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+})();
+</script>
+</body>
+</html>
