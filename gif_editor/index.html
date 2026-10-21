@@ -1,0 +1,2415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GIF Studio</title>
+<style>
+:root{
+  --bg:#14161b; --stage:#0f1115; --panel:#1c1f26; --panel2:#252933; --panel3:#2d323e; --line:#323846;
+  --text:#e7e9ef; --muted:#959cae; --accent:#5b8cff; --accent2:#3f6fe6; --danger:#ff5d6c; --ok:#3ecf8e;
+  color-scheme:dark;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-size:13px;display:grid;grid-template-rows:auto 1fr auto auto;overflow:hidden;user-select:none;-webkit-user-select:none}
+button,input,select,textarea{font:inherit;color:inherit}
+svg{width:18px;height:18px;flex:none}
+.muted{color:var(--muted)}
+
+/* ---------- Menu bar ---------- */
+.menubar{display:flex;align-items:center;gap:2px;padding:4px 8px;background:var(--panel);border-bottom:1px solid var(--line);min-height:44px;flex-wrap:wrap;position:relative;z-index:30}
+.brand{font-weight:700;letter-spacing:.2px;margin-right:12px;display:flex;align-items:center;gap:8px;font-size:14px}
+.brand i{width:22px;height:22px;border-radius:6px;background:conic-gradient(from 45deg,#ff5d6c,#ffb84d,#3ecf8e,#5b8cff,#b36bff,#ff5d6c);display:inline-block}
+.menu{position:relative}
+.menu>button{background:none;border:0;padding:6px 10px;border-radius:6px;cursor:pointer}
+.menu>button:hover,.menu.open>button{background:var(--panel2)}
+.dropdown{display:none;position:absolute;top:calc(100% + 2px);left:0;min-width:250px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:4px;z-index:60;box-shadow:0 14px 40px #000a}
+.menu.open .dropdown{display:block}
+.dropdown button{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:0;padding:7px 10px;border-radius:6px;text-align:left;cursor:pointer;gap:24px;white-space:nowrap}
+.dropdown button:hover{background:var(--accent2)}
+.dropdown button:disabled{opacity:.4;pointer-events:none}
+.dropdown hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+.dropdown .sub{padding:4px 10px 2px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+kbd{font-family:inherit;color:var(--muted);font-size:11px}
+.dropdown button:hover kbd{color:#fff}
+.spacer{flex:1}
+.ibtn{width:32px;height:32px;display:inline-grid;place-items:center;background:none;border:1px solid transparent;border-radius:7px;cursor:pointer;color:var(--text);padding:0}
+.ibtn:hover{background:var(--panel2)}
+.ibtn:disabled{opacity:.35;pointer-events:none}
+.ibtn.active{background:var(--accent);color:#fff}
+.btn{display:inline-flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);padding:7px 14px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--panel3)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent2)}
+.btn.sm{padding:4px 9px;font-size:12px}
+.btn svg{width:16px;height:16px}
+#panelToggle{display:none}
+
+/* ---------- Workspace ---------- */
+.workspace{display:grid;grid-template-columns:52px 1fr 272px;min-height:0}
+.tools{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0;overflow-y:auto}
+.tools .ibtn{width:38px;height:38px}
+.tools hr{width:28px;border:0;border-top:1px solid var(--line);margin:4px 0}
+.stage{position:relative;overflow:auto;background:var(--stage);min-width:0;min-height:0}
+.stage-inner{display:flex;min-width:100%;min-height:100%;width:max-content;padding:48px}
+.canvas-wrap{position:relative;margin:auto;box-shadow:0 0 0 1px #0008,0 10px 40px #000a;flex:none}
+.canvas-wrap.hidden{display:none}
+#view{display:block;width:100%;height:100%;cursor:crosshair;touch-action:none}
+.bg-checker{background-color:#fff;background-image:linear-gradient(45deg,#cbd0d8 25%,transparent 25%),linear-gradient(-45deg,#cbd0d8 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#cbd0d8 75%),linear-gradient(-45deg,transparent 75%,#cbd0d8 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0}
+.bg-white{background:#fff}.bg-black{background:#000}.bg-gray{background:#808080}
+#gridEl{position:absolute;inset:0;pointer-events:none;display:none;background-image:linear-gradient(to right,rgba(128,128,128,.45) 1px,transparent 1px),linear-gradient(to bottom,rgba(128,128,128,.45) 1px,transparent 1px)}
+#selBox{position:absolute;pointer-events:none;display:none;border:1px dashed #fff;outline:1px dashed #000;outline-offset:0;animation:ants 1s linear infinite}
+@keyframes ants{50%{border-color:#000;outline-color:#fff}}
+#brushCursor{position:absolute;pointer-events:none;display:none;border:1px solid #fff;box-shadow:0 0 0 1px #000a,inset 0 0 0 1px #000a}
+.empty{margin:auto;text-align:center;max-width:440px;padding:36px 32px;border:2px dashed var(--line);border-radius:16px;background:#ffffff05}
+.empty h2{margin:0 0 6px;font-size:22px}
+.empty p{color:var(--muted);margin:0 0 20px;line-height:1.5}
+.empty .row{justify-content:center}
+body.dropping .stage{outline:3px dashed var(--accent);outline-offset:-10px}
+
+/* ---------- Side panel ---------- */
+.panel{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;min-height:0}
+.panel section{padding:12px 14px;border-bottom:1px solid var(--line)}
+.panel h3{margin:0 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:600}
+.color-pair{position:relative;width:62px;height:54px;flex:none}
+.swatch-big{position:absolute;width:38px;height:38px;border-radius:8px;border:2px solid var(--text);overflow:hidden;cursor:pointer;box-shadow:0 2px 8px #0008}
+.swatch-big input{position:absolute;inset:-10px;width:calc(100% + 20px);height:calc(100% + 20px);border:0;padding:0;cursor:pointer;background:none}
+.swatch-big.primary{left:0;top:0;z-index:2}
+.swatch-big.secondary{right:0;bottom:0}
+.colors{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.colors .stack{display:flex;flex-direction:column;gap:4px}
+.colors .ibtn{width:26px;height:26px}
+.colors .ibtn svg{width:15px;height:15px}
+.hexes{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:var(--muted);line-height:1.7}
+.palette{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-bottom:8px}
+.sw{aspect-ratio:1;border-radius:4px;border:1px solid #0008;cursor:pointer;padding:0;box-shadow:inset 0 0 0 1px #ffffff1a}
+.sw:hover{transform:scale(1.12);z-index:1}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.opt{display:grid;grid-template-columns:70px 1fr auto;align-items:center;gap:8px;margin-bottom:8px}
+.opt.wide{grid-template-columns:1fr}
+.opt label{color:var(--muted)}
+.opt label.check{color:var(--text);display:flex;align-items:center;gap:7px;cursor:pointer}
+.opt .val{min-width:38px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.hint{margin:6px 0 0;color:var(--muted);font-size:11.5px;line-height:1.5}
+input[type=number],input[type=text],select,textarea{background:#11131a;border:1px solid var(--line);color:var(--text);border-radius:6px;padding:5px 8px;width:100%;min-width:0}
+input[type=number]:focus,input[type=text]:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+input[type=range]{width:100%;accent-color:var(--accent);min-width:0}
+input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;margin:0}
+input[type=color]{cursor:pointer}
+#sizeNum{width:58px}
+.zoomrow{display:flex;align-items:center;gap:4px}
+.zoomrow span{flex:1;text-align:center;font-variant-numeric:tabular-nums}
+
+/* ---------- Timeline ---------- */
+.timeline{background:var(--panel);border-top:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
+.tl-controls{display:flex;align-items:center;gap:2px;padding:4px 8px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tl-controls .sep{width:1px;height:20px;background:var(--line);margin:0 6px}
+.tl-controls .info{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums;padding-right:4px}
+#playBtn{background:var(--accent);color:#fff}
+#playBtn:hover{background:var(--accent2)}
+.frames{display:flex;gap:10px;padding:10px 12px;overflow-x:auto;min-height:124px;align-items:flex-start}
+.frame{flex:0 0 auto;width:100px;background:var(--panel2);border:2px solid transparent;border-radius:8px;padding:5px;cursor:pointer;position:relative}
+.frame:hover{background:var(--panel3)}
+.frame .thumb{width:86px;height:64px;display:grid;place-items:center;border-radius:4px;overflow:hidden}
+.frame .thumb canvas{display:block;image-rendering:pixelated}
+.frame .lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
+.frame.sel{border-color:#5b8cff70;background:#5b8cff1f}
+.frame.cur{border-color:var(--accent)}
+.frame.cur .lbl span:first-child{color:var(--text);font-weight:600}
+.frame.playing{border-color:var(--ok)}
+.frame.drop-before::before,.frame.drop-after::after{content:'';position:absolute;top:0;bottom:0;width:3px;background:var(--accent);border-radius:2px}
+.frame.drop-before::before{left:-8px}
+.frame.drop-after::after{right:-8px}
+.frame.dragging{opacity:.4}
+
+.statusbar{display:flex;gap:18px;padding:4px 12px;font-size:11.5px;color:var(--muted);background:var(--panel);border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}
+.statusbar b{color:var(--text);font-weight:500}
+.cswatch{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;border:1px solid #fff4;margin-right:4px}
+
+/* ---------- Dialogs ---------- */
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:0;width:min(470px,94vw);box-shadow:0 24px 70px #000c}
+dialog::backdrop{background:#0008}
+dialog.wide{width:min(620px,94vw)}
+.dlg-head{padding:14px 18px;font-weight:600;font-size:15px;border-bottom:1px solid var(--line)}
+.dlg-body{padding:14px 18px;display:grid;gap:10px;max-height:66vh;overflow:auto}
+.dlg-foot{padding:12px 18px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--line)}
+.field{display:grid;grid-template-columns:150px 1fr;align-items:center;gap:12px}
+.field>span:first-child{color:var(--muted)}
+.field .rng{display:flex;align-items:center;gap:8px}
+.field .rng output{min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+.note{margin:0;color:var(--muted);line-height:1.5}
+.anchor{display:grid;grid-template-columns:repeat(3,28px);gap:3px}
+.anchor button{width:28px;height:28px;border-radius:5px;border:1px solid var(--line);background:var(--panel2);cursor:pointer}
+.anchor button.on{background:var(--accent);border-color:var(--accent)}
+.result-preview{display:grid;place-items:center;background:var(--stage);border-radius:10px;padding:12px;min-height:120px}
+.result-preview img{max-width:100%;max-height:46vh;image-rendering:auto}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:5px 18px;font-size:12.5px}
+.keys kbd{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text);font-size:11.5px;white-space:nowrap;justify-self:start}
+.keys h4{grid-column:1/-1;margin:8px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)}
+
+/* ---------- Busy + toast ---------- */
+#busy{position:fixed;inset:0;background:#000a;display:none;place-items:center;z-index:100}
+#busy.show{display:grid}
+#busy .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 22px;width:300px}
+#busy .bar{height:6px;background:var(--panel3);border-radius:3px;overflow:hidden;margin-top:12px}
+#busy .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .1s}
+#toasts{position:fixed;left:50%;bottom:190px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;z-index:120;pointer-events:none}
+.toast{background:var(--panel3);border:1px solid var(--line);padding:8px 14px;border-radius:8px;box-shadow:0 8px 24px #0009;animation:tin .18s ease-out}
+.toast.error{border-color:var(--danger);color:#ffd0d4}
+.toast.ok{border-color:var(--ok)}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}}
+
+@media (max-width:900px){
+  .workspace{grid-template-columns:46px 1fr}
+  .tools .ibtn{width:34px;height:34px}
+  .panel{position:fixed;right:0;top:44px;bottom:0;width:280px;z-index:40;transform:translateX(100%);transition:transform .2s;box-shadow:-10px 0 30px #0009}
+  .panel.show{transform:none}
+  #panelToggle{display:inline-grid}
+  .brand span{display:none}
+  .stage-inner{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<header class="menubar" id="menubar">
+  <div class="brand"><i></i><span>GIF Studio</span></div>
+  <div class="menu"><button>File</button><div class="dropdown">
+    <button data-cmd="new">New animation…</button>
+    <button data-cmd="open">Open GIF / image… <kbd>Ctrl+O</kbd></button>
+    <button data-cmd="insertFiles">Insert images / GIF as frames…</button>
+    <button data-cmd="importSheet">Import sprite sheet…</button>
+    <button data-cmd="demo">Load demo animation</button>
+    <hr>
+    <button data-cmd="save">Export GIF… <kbd>Ctrl+S</kbd></button>
+    <button data-cmd="exportPng">Export current frame as PNG</button>
+    <button data-cmd="exportSheet">Export sprite sheet PNG…</button>
+  </div></div>
+  <div class="menu"><button>Edit</button><div class="dropdown">
+    <button data-cmd="undo">Undo <kbd>Ctrl+Z</kbd></button>
+    <button data-cmd="redo">Redo <kbd>Ctrl+Y</kbd></button>
+    <hr>
+    <button data-cmd="copyFrames">Copy frames <kbd>Ctrl+C</kbd></button>
+    <button data-cmd="cutFrames">Cut frames <kbd>Ctrl+X</kbd></button>
+    <button data-cmd="pasteFrames">Paste frames after current <kbd>Ctrl+V</kbd></button>
+    <hr>
+    <button data-cmd="selectAll">Select entire canvas <kbd>Ctrl+A</kbd></button>
+    <button data-cmd="deselect">Deselect <kbd>Ctrl+D</kbd></button>
+    <button data-cmd="clearSel">Erase selected area <kbd>Del</kbd></button>
+    <button data-cmd="fillSel">Fill selected area with primary</button>
+    <hr>
+    <button data-cmd="selectAllFrames">Select all frames <kbd>Ctrl+Shift+A</kbd></button>
+  </div></div>
+  <div class="menu"><button>Image</button><div class="dropdown">
+    <button data-cmd="resize">Resize (scale)…</button>
+    <button data-cmd="canvasSize">Canvas size…</button>
+    <button data-cmd="crop">Crop to selection</button>
+    <button data-cmd="trim">Trim transparent edges</button>
+    <hr>
+    <button data-cmd="rot90">Rotate 90° clockwise</button>
+    <button data-cmd="rot270">Rotate 90° counter-clockwise</button>
+    <button data-cmd="rot180">Rotate 180°</button>
+    <button data-cmd="flipH">Flip horizontal (all frames)</button>
+    <button data-cmd="flipV">Flip vertical (all frames)</button>
+  </div></div>
+  <div class="menu"><button>Frames</button><div class="dropdown">
+    <button data-cmd="addFrame">Add blank frame <kbd>N</kbd></button>
+    <button data-cmd="dupFrame">Duplicate frames <kbd>Shift+D</kbd></button>
+    <button data-cmd="delFrame">Delete frames <kbd>Shift+Del</kbd></button>
+    <button data-cmd="moveLeft">Move frame left <kbd>Shift+←</kbd></button>
+    <button data-cmd="moveRight">Move frame right <kbd>Shift+→</kbd></button>
+    <hr>
+    <button data-cmd="reverse">Reverse order</button>
+    <button data-cmd="pingpong">Make ping-pong loop</button>
+    <button data-cmd="dropOdd">Remove every other frame</button>
+    <hr>
+    <button data-cmd="delays">Set frame delay…</button>
+    <button data-cmd="faster">Speed up ×2</button>
+    <button data-cmd="slower">Slow down ×2</button>
+    <hr>
+    <button data-cmd="flipFrameH">Flip selected frames horizontally</button>
+    <button data-cmd="flipFrameV">Flip selected frames vertically</button>
+    <button data-cmd="clearFrame">Clear selected frames</button>
+  </div></div>
+  <div class="menu"><button>Filters</button><div class="dropdown">
+    <div class="sub">Opens a preview, then applies to frames you choose</div>
+    <button data-cmd="adjust">Brightness / Contrast / Hue…</button>
+    <button data-cmd="grayscale">Grayscale…</button>
+    <button data-cmd="sepia">Sepia…</button>
+    <button data-cmd="invert">Invert colors…</button>
+    <hr>
+    <button data-cmd="blur">Blur…</button>
+    <button data-cmd="sharpen">Sharpen…</button>
+    <button data-cmd="pixelate">Pixelate…</button>
+    <button data-cmd="posterize">Posterize…</button>
+    <button data-cmd="noise">Add noise…</button>
+    <hr>
+    <button data-cmd="replaceColor">Replace color…</button>
+    <button data-cmd="colorToAlpha">Make color transparent…</button>
+    <button data-cmd="fade">Fade / opacity…</button>
+  </div></div>
+  <div class="menu"><button>View</button><div class="dropdown">
+    <button data-cmd="zoomIn">Zoom in <kbd>Ctrl++</kbd></button>
+    <button data-cmd="zoomOut">Zoom out <kbd>Ctrl+-</kbd></button>
+    <button data-cmd="zoomFit">Fit to window <kbd>Ctrl+0</kbd></button>
+    <button data-cmd="zoom100">Actual size (100%) <kbd>Ctrl+1</kbd></button>
+    <hr>
+    <button data-cmd="toggleGrid">Toggle pixel grid <kbd>Ctrl+'</kbd></button>
+    <button data-cmd="toggleOnion">Toggle onion skin <kbd>O</kbd></button>
+  </div></div>
+  <div class="menu"><button>Help</button><div class="dropdown">
+    <button data-cmd="help">Keyboard shortcuts <kbd>?</kbd></button>
+    <button data-cmd="about">About GIF Studio</button>
+  </div></div>
+  <div class="spacer"></div>
+  <button class="ibtn" data-cmd="undo" data-icon="undo" title="Undo (Ctrl+Z)" id="undoBtn"></button>
+  <button class="ibtn" data-cmd="redo" data-icon="redo" title="Redo (Ctrl+Y)" id="redoBtn"></button>
+  <button class="ibtn" data-cmd="open" data-icon="open" title="Open (Ctrl+O)"></button>
+  <button class="btn primary" data-cmd="save" style="margin-left:6px"><span data-icon="save"></span>Export GIF</button>
+  <button class="ibtn" id="panelToggle" data-icon="panel" title="Show options panel"></button>
+</header>
+
+<main class="workspace">
+  <aside class="tools" id="tools"></aside>
+
+  <section class="stage" id="stage">
+    <div class="stage-inner">
+      <div class="canvas-wrap bg-checker hidden" id="wrap">
+        <canvas id="view" width="1" height="1"></canvas>
+        <div id="gridEl"></div>
+        <div id="selBox"></div>
+        <div id="brushCursor"></div>
+      </div>
+      <div class="empty" id="emptyState">
+        <h2>Create or open a GIF</h2>
+        <p>Drop a GIF or images anywhere in this window, or start from scratch. Everything runs locally in your browser — nothing is uploaded.</p>
+        <div class="row">
+          <button class="btn primary" data-cmd="new">New animation</button>
+          <button class="btn" data-cmd="open">Open file…</button>
+          <button class="btn" data-cmd="demo">Try the demo</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel" id="panel">
+    <section>
+      <h3>Colors</h3>
+      <div class="colors">
+        <div class="color-pair">
+          <label class="swatch-big primary" title="Primary color (left click)"><input type="color" id="primary" value="#000000"></label>
+          <label class="swatch-big secondary" title="Secondary color (right click)"><input type="color" id="secondary" value="#ffffff"></label>
+        </div>
+        <div class="stack">
+          <button class="ibtn" id="swapColors" data-icon="swap" title="Swap colors (X)"></button>
+          <button class="ibtn" id="resetColors" data-icon="reset" title="Reset to black / white"></button>
+        </div>
+        <div class="hexes"><div>L <span id="primaryHex">#000000</span></div><div>R <span id="secondaryHex">#ffffff</span></div></div>
+      </div>
+      <div class="palette" id="palette"></div>
+      <div class="hint" style="margin:0 0 4px">Recent</div>
+      <div class="palette" id="recent"></div>
+      <div class="row">
+        <button class="btn sm" id="paletteFromFrame" title="Build a palette from the colors in the current frame">Palette from frame</button>
+        <button class="btn sm" id="paletteReset">Default palette</button>
+      </div>
+    </section>
+
+    <section id="toolOpts">
+      <h3 id="toolTitle">Tool</h3>
+      <div class="opt" data-for="pencil brush eraser spray line rect ellipse">
+        <label for="size">Size</label><input type="range" id="size" min="1" max="100" value="3"><input type="number" id="sizeNum" min="1" max="500" value="3">
+      </div>
+      <div class="opt" data-for="pencil brush eraser spray line rect ellipse fill text">
+        <label for="opacity">Opacity</label><input type="range" id="opacity" min="1" max="100" value="100"><span class="val" id="opacityVal">100%</span>
+      </div>
+      <div class="opt" data-for="rect ellipse">
+        <label for="shapeStyle">Style</label>
+        <select id="shapeStyle"><option value="outline">Outline</option><option value="filled">Filled</option><option value="both">Outline + fill (other color)</option></select><span></span>
+      </div>
+      <div class="opt wide" data-for="eraser line rect ellipse">
+        <label class="check"><input type="checkbox" id="antialias"> Smooth edges (anti-aliasing)</label>
+      </div>
+      <div class="opt" data-for="fill">
+        <label for="tolerance">Tolerance</label><input type="range" id="tolerance" min="0" max="100" value="10"><span class="val" id="tolVal">10%</span>
+      </div>
+      <div class="opt wide" data-for="fill">
+        <label class="check"><input type="checkbox" id="contiguous" checked> Contiguous area only</label>
+      </div>
+      <div class="opt wide" data-for="move">
+        <label class="check"><input type="checkbox" id="moveAll"> Move all frames together</label>
+      </div>
+      <div class="opt wide" data-for="move">
+        <label class="check"><input type="checkbox" id="wrapMove"> Wrap around edges</label>
+      </div>
+      <div class="opt wide" data-for="select">
+        <div class="row">
+          <button class="btn sm" data-cmd="crop">Crop</button>
+          <button class="btn sm" data-cmd="clearSel">Erase</button>
+          <button class="btn sm" data-cmd="fillSel">Fill</button>
+          <button class="btn sm" data-cmd="deselect">Deselect</button>
+        </div>
+      </div>
+      <p class="hint" id="toolHint"></p>
+    </section>
+
+    <section>
+      <h3>Frame</h3>
+      <div class="opt">
+        <label for="delay">Delay</label><input type="number" id="delay" min="20" max="65000" step="10" value="100"><span class="val">ms</span>
+      </div>
+      <div class="row" style="margin-bottom:6px">
+        <button class="btn sm" id="delayAll">Apply delay to all frames</button>
+      </div>
+      <p class="hint" id="frameInfo">—</p>
+    </section>
+
+    <section>
+      <h3>Playback &amp; view</h3>
+      <div class="opt">
+        <label for="speed">Speed</label>
+        <select id="speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1× (real)</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="4">4×</option></select><span></span>
+      </div>
+      <div class="opt wide"><label class="check"><input type="checkbox" id="onion"> Onion skin (show previous frame)</label></div>
+      <div class="opt">
+        <label for="onionOpacity">Onion</label><input type="range" id="onionOpacity" min="5" max="80" value="30"><span class="val" id="onionVal">30%</span>
+      </div>
+      <div class="opt wide"><label class="check"><input type="checkbox" id="onionNext"> Also show next frame</label></div>
+      <div class="opt wide"><label class="check"><input type="checkbox" id="gridToggle"> Pixel grid (zoom ≥ 400%)</label></div>
+      <div class="opt">
+        <label for="bgSelect">Backdrop</label>
+        <select id="bgSelect"><option value="checker">Checkerboard</option><option value="white">White</option><option value="gray">Gray</option><option value="black">Black</option></select><span></span>
+      </div>
+      <div class="zoomrow">
+        <button class="ibtn" data-cmd="zoomOut" data-icon="zoomOut" title="Zoom out"></button>
+        <span id="zoomLabel">100%</span>
+        <button class="ibtn" data-cmd="zoomIn" data-icon="zoomIn" title="Zoom in"></button>
+        <button class="btn sm" data-cmd="zoomFit">Fit</button>
+        <button class="btn sm" data-cmd="zoom100">1:1</button>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<footer class="timeline">
+  <div class="tl-controls">
+    <button class="ibtn" data-cmd="first" data-icon="first" title="First frame (Home)"></button>
+    <button class="ibtn" data-cmd="prev" data-icon="prev" title="Previous frame (←)"></button>
+    <button class="ibtn" data-cmd="play" data-icon="play" id="playBtn" title="Play / pause (Space)"></button>
+    <button class="ibtn" data-cmd="next" data-icon="next" title="Next frame (→)"></button>
+    <button class="ibtn" data-cmd="last" data-icon="last" title="Last frame (End)"></button>
+    <span class="sep"></span>
+    <button class="ibtn" data-cmd="addFrame" data-icon="add" title="Add blank frame (N)"></button>
+    <button class="ibtn" data-cmd="dupFrame" data-icon="dup" title="Duplicate selected frames (Shift+D)"></button>
+    <button class="ibtn" data-cmd="delFrame" data-icon="trash" title="Delete selected frames (Shift+Del)"></button>
+    <button class="ibtn" data-cmd="moveLeft" data-icon="left" title="Move frame left (Shift+←)"></button>
+    <button class="ibtn" data-cmd="moveRight" data-icon="right" title="Move frame right (Shift+→)"></button>
+    <button class="ibtn" data-cmd="reverse" data-icon="reverse" title="Reverse frame order"></button>
+    <span class="sep"></span>
+    <button class="btn sm" data-cmd="selectAllFrames">Select all</button>
+    <span class="info" id="tlInfo"></span>
+  </div>
+  <div class="frames" id="frames"></div>
+</footer>
+
+<div class="statusbar">
+  <span>Size <b id="stSize">—</b></span>
+  <span>Frames <b id="stFrames">—</b></span>
+  <span>Duration <b id="stDur">—</b></span>
+  <span>Cursor <b id="stPos">—</b></span>
+  <span id="stColor"></span>
+  <span id="stSel"></span>
+</div>
+
+<!-- Generic form dialog -->
+<dialog id="formDlg">
+  <form method="dialog" id="formForm">
+    <div class="dlg-head" id="formTitle">Dialog</div>
+    <div class="dlg-body" id="formBody"></div>
+    <div class="dlg-foot">
+      <button type="button" class="btn" id="formCancel">Cancel</button>
+      <button type="submit" class="btn primary" id="formOk">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Export result -->
+<dialog id="resultDlg" class="wide">
+  <div class="dlg-head">GIF ready</div>
+  <div class="dlg-body">
+    <div class="result-preview"><img id="resultImg" alt="Exported GIF preview"></div>
+    <p class="note" id="resultInfo"></p>
+  </div>
+  <div class="dlg-foot">
+    <button type="button" class="btn" id="resultClose">Close</button>
+    <button type="button" class="btn primary" id="resultDownload"><span data-icon="save"></span>Download</button>
+  </div>
+</dialog>
+
+<!-- Help -->
+<dialog id="helpDlg" class="wide">
+  <div class="dlg-head">Keyboard shortcuts</div>
+  <div class="dlg-body">
+    <div class="keys">
+      <h4>Tools</h4>
+      <kbd>P</kbd><span>Pencil (hard pixels)</span>
+      <kbd>B</kbd><span>Brush (smooth)</span>
+      <kbd>E</kbd><span>Eraser</span>
+      <kbd>A</kbd><span>Spray</span>
+      <kbd>L</kbd><span>Line (Shift snaps to 45°)</span>
+      <kbd>R</kbd><span>Rectangle (Shift = square)</span>
+      <kbd>C</kbd><span>Ellipse (Shift = circle)</span>
+      <kbd>G</kbd><span>Fill bucket</span>
+      <kbd>I</kbd><span>Eyedropper (or Alt+click with any paint tool)</span>
+      <kbd>T</kbd><span>Text</span>
+      <kbd>V</kbd><span>Move frame content</span>
+      <kbd>M</kbd><span>Rectangle select</span>
+      <kbd>[ ]</kbd><span>Decrease / increase size</span>
+      <kbd>X</kbd><span>Swap primary / secondary colors</span>
+      <h4>Mouse</h4>
+      <kbd>Left / right click</kbd><span>Paint with primary / secondary color</span>
+      <kbd>Ctrl + wheel</kbd><span>Zoom at the cursor</span>
+      <kbd>Middle drag</kbd><span>Pan the canvas</span>
+      <kbd>Ctrl / Shift click</kbd><span>Multi-select frames in the timeline; drag frames to reorder</span>
+      <h4>Frames &amp; playback</h4>
+      <kbd>Space</kbd><span>Play / pause</span>
+      <kbd>← →</kbd><span>Previous / next frame</span>
+      <kbd>Home / End</kbd><span>First / last frame</span>
+      <kbd>Shift + ← →</kbd><span>Move current frame</span>
+      <kbd>N</kbd><span>Add blank frame</span>
+      <kbd>Shift+D</kbd><span>Duplicate selected frames</span>
+      <kbd>Shift+Del</kbd><span>Delete selected frames</span>
+      <kbd>O</kbd><span>Toggle onion skin</span>
+      <h4>Edit &amp; file</h4>
+      <kbd>Ctrl+Z / Ctrl+Y</kbd><span>Undo / redo</span>
+      <kbd>Ctrl+C / X / V</kbd><span>Copy / cut / paste frames (paste an image from the clipboard to add it as a frame)</span>
+      <kbd>Ctrl+A / Ctrl+D</kbd><span>Select whole canvas / deselect</span>
+      <kbd>Delete</kbd><span>Erase the selected area</span>
+      <kbd>Ctrl+O / Ctrl+S</kbd><span>Open / export GIF</span>
+      <kbd>Ctrl+0 / Ctrl+1</kbd><span>Fit / actual size</span>
+    </div>
+  </div>
+  <div class="dlg-foot"><button type="button" class="btn primary" onclick="this.closest('dialog').close()">Close</button></div>
+</dialog>
+
+<div id="busy"><div class="card"><div id="busyText">Working…</div><div class="bar"><i id="busyBar"></i></div></div></div>
+<div id="toasts"></div>
+<input type="file" id="fileOpen" accept="image/gif,image/png,image/jpeg,image/webp,image/bmp,.gif" hidden>
+<input type="file" id="fileInsert" accept="image/gif,image/png,image/jpeg,image/webp,image/bmp,.gif" multiple hidden>
+<input type="file" id="fileSheet" accept="image/*" hidden>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   GIF codec — pure functions on RGBA arrays, no DOM dependencies.
+   ===================================================================== */
+/* CODEC-START */
+const GIFCodec = (() => {
+  // ---------- Decoder ----------
+  function lzwDecode(minCodeSize, data, pixelCount) {
+    const out = new Uint8Array(pixelCount);
+    const clear = 1 << minCodeSize, eoi = clear + 1;
+    const prefix = new Int16Array(4096), suffix = new Uint8Array(4096), stack = new Uint8Array(4097);
+    for (let i = 0; i < clear; i++) { prefix[i] = -1; suffix[i] = i; }
+    let codeSize = minCodeSize + 1, codeMask = (1 << codeSize) - 1, avail = clear + 2;
+    let oldCode = -1, first = 0, datum = 0, bits = 0, pi = 0, op = 0, top = 0;
+    while (op < pixelCount) {
+      while (bits < codeSize) {
+        if (pi >= data.length) return out;
+        datum |= data[pi++] << bits; bits += 8;
+      }
+      let code = datum & codeMask;
+      datum >>>= codeSize; bits -= codeSize;
+      if (code === clear) { codeSize = minCodeSize + 1; codeMask = (1 << codeSize) - 1; avail = clear + 2; oldCode = -1; continue; }
+      if (code === eoi) break;
+      if (oldCode === -1) { out[op++] = suffix[code]; oldCode = code; first = code; continue; }
+      const inCode = code;
+      if (code >= avail) { stack[top++] = first; code = oldCode; }
+      while (code >= clear) { stack[top++] = suffix[code]; code = prefix[code]; }
+      first = suffix[code];
+      stack[top++] = first;
+      if (avail < 4096) {
+        prefix[avail] = oldCode; suffix[avail] = first; avail++;
+        if ((avail & codeMask) === 0 && avail < 4096) { codeSize++; codeMask += avail; }
+      }
+      oldCode = inCode;
+      while (top > 0 && op < pixelCount) out[op++] = stack[--top];
+      top = 0;
+    }
+    return out;
+  }
+
+  function interlaceRows(h) {
+    const rows = new Array(h); let r = 0;
+    for (const [start, step] of [[0, 8], [4, 8], [2, 4], [1, 2]]) for (let y = start; y < h; y += step) rows[r++] = y;
+    return rows;
+  }
+
+  function decode(buffer) {
+    const d = new Uint8Array(buffer);
+    if (d.length < 13 || d[0] !== 0x47 || d[1] !== 0x49 || d[2] !== 0x46) throw new Error('Not a GIF file');
+    let p = 6;
+    const W = d[p] | (d[p + 1] << 8), H = d[p + 2] | (d[p + 3] << 8); p += 4;
+    const packed = d[p++]; p += 2;
+    if (!W || !H) throw new Error('Invalid GIF dimensions');
+    let gct = null;
+    if (packed & 0x80) { const n = 1 << ((packed & 7) + 1); gct = d.subarray(p, p + n * 3); p += n * 3; }
+    const frames = [];
+    let loop = 1, gce = null, saved = null;
+    const comp = new Uint8ClampedArray(W * H * 4);
+    const skipBlocks = () => { while (p < d.length) { const s = d[p++]; if (!s) break; p += s; } };
+    while (p < d.length) {
+      const b = d[p++];
+      if (b === 0x3B) break;
+      if (b === 0x21) {
+        const label = d[p++];
+        if (label === 0xF9 && d[p] >= 4) {
+          const pk = d[p + 1];
+          gce = { disposal: (pk >> 2) & 7, delay: (d[p + 2] | (d[p + 3] << 8)) * 10, trans: (pk & 1) ? d[p + 4] : -1 };
+          p += 1 + d[p]; skipBlocks();
+        } else if (label === 0xFF) {
+          const size = d[p];
+          const id = String.fromCharCode(...d.subarray(p + 1, p + 1 + Math.min(size, 11)));
+          p += 1 + size;
+          if ((id === 'NETSCAPE2.0' || id === 'ANIMEXTS1.0') && d[p] >= 3 && d[p + 1] === 1) {
+            const n = d[p + 2] | (d[p + 3] << 8);
+            loop = n === 0 ? 0 : n + 1;
+          }
+          skipBlocks();
+        } else skipBlocks();
+      } else if (b === 0x2C) {
+        const fx = d[p] | (d[p + 1] << 8), fy = d[p + 2] | (d[p + 3] << 8);
+        const fw = d[p + 4] | (d[p + 5] << 8), fh = d[p + 6] | (d[p + 7] << 8); p += 8;
+        const pk = d[p++];
+        let ct = gct;
+        if (pk & 0x80) { const n = 1 << ((pk & 7) + 1); ct = d.subarray(p, p + n * 3); p += n * 3; }
+        const interlaced = !!(pk & 0x40);
+        const minCode = d[p++];
+        let total = 0, q = p;
+        while (q < d.length) { const s = d[q++]; if (!s) break; total += s; q += s; }
+        const data = new Uint8Array(total); let o = 0;
+        while (p < d.length) {
+          const s = d[p++]; if (!s) break;
+          const chunk = d.subarray(p, Math.min(p + s, d.length));
+          data.set(chunk, o); o += chunk.length; p += s;
+        }
+        const g = gce || { disposal: 0, delay: 0, trans: -1 };
+        if (fw && fh && minCode >= 1 && minCode <= 11) {
+          const px = lzwDecode(minCode, data, fw * fh);
+          if (g.disposal === 3) saved = comp.slice();
+          const rows = interlaced ? interlaceRows(fh) : null;
+          if (ct) {
+            const nColors = ct.length / 3;
+            for (let r = 0; r < fh; r++) {
+              const y = fy + (rows ? rows[r] : r);
+              if (y >= H) continue;
+              for (let c = 0; c < fw; c++) {
+                const x = fx + c; if (x >= W) continue;
+                const idx = px[r * fw + c];
+                if (idx === g.trans || idx >= nColors) continue;
+                const ci = idx * 3, oi = (y * W + x) * 4;
+                comp[oi] = ct[ci]; comp[oi + 1] = ct[ci + 1]; comp[oi + 2] = ct[ci + 2]; comp[oi + 3] = 255;
+              }
+            }
+          }
+          frames.push({ data: comp.slice(), delay: g.delay });
+          if (g.disposal === 2) {
+            for (let y = fy; y < Math.min(fy + fh, H); y++) comp.fill(0, (y * W + fx) * 4, (y * W + Math.min(fx + fw, W)) * 4);
+          } else if (g.disposal === 3 && saved) comp.set(saved);
+        }
+        gce = null;
+      } else break;
+    }
+    if (!frames.length) throw new Error('The GIF contains no frames');
+    return { w: W, h: H, frames, loop };
+  }
+
+  // ---------- Encoder ----------
+  class ByteWriter {
+    constructor(n = 1 << 20) { this.buf = new Uint8Array(n); this.len = 0; }
+    ensure(k) {
+      if (this.len + k <= this.buf.length) return;
+      let n = this.buf.length * 2; while (n < this.len + k) n *= 2;
+      const b = new Uint8Array(n); b.set(this.buf.subarray(0, this.len)); this.buf = b;
+    }
+    byte(v) { this.ensure(1); this.buf[this.len++] = v; }
+    u16(v) { this.ensure(2); this.buf[this.len++] = v & 255; this.buf[this.len++] = (v >> 8) & 255; }
+    bytes(a) { this.ensure(a.length); this.buf.set(a, this.len); this.len += a.length; }
+    str(s) { for (let i = 0; i < s.length; i++) this.byte(s.charCodeAt(i)); }
+    result() { return this.buf.slice(0, this.len); }
+  }
+
+  const dict = new Int16Array(4096 * 256);
+  function lzwEncode(w, indices, minCodeSize) {
+    w.byte(minCodeSize);
+    const block = new Uint8Array(255); let bl = 0;
+    const put = b => { block[bl++] = b; if (bl === 255) { w.byte(255); w.bytes(block); bl = 0; } };
+    const clear = 1 << minCodeSize, eoi = clear + 1;
+    let codeSize = minCodeSize + 1, next = eoi + 1, acc = 0, nbits = 0;
+    const emit = c => { acc |= c << nbits; nbits += codeSize; while (nbits >= 8) { put(acc & 255); acc >>>= 8; nbits -= 8; } };
+    dict.fill(0);
+    emit(clear);
+    let prefix = indices[0];
+    for (let i = 1, n = indices.length; i < n; i++) {
+      const k = indices[i], key = prefix * 256 + k;
+      const c = dict[key];
+      if (c) { prefix = c; continue; }
+      emit(prefix);
+      if (next < 4096) {
+        dict[key] = next++;
+        if (next > (1 << codeSize)) codeSize++;
+      } else {
+        emit(clear); dict.fill(0); codeSize = minCodeSize + 1; next = eoi + 1;
+      }
+      prefix = k;
+    }
+    emit(prefix); emit(eoi);
+    if (nbits > 0) put(acc & 255);
+    if (bl) { w.byte(bl); w.bytes(block.subarray(0, bl)); }
+    w.byte(0);
+  }
+
+  // Color histogram on a 15-bit (5:5:5) grid, plus an exact color set while it stays small.
+  function newHist(limit) { return { counts: new Uint32Array(32768), sums: new Float64Array(32768 * 3), exact: new Map(), limit }; }
+  function addHist(h, d, W, x0, y0, rw, rh, thr, prev, stride = 1) {
+    const { counts, sums } = h; let exact = h.exact, last = -1;
+    for (let y = y0; y < y0 + rh; y += stride) {
+      for (let x = x0; x < x0 + rw; x += stride) {
+        const i = (y * W + x) * 4;
+        if (d[i + 3] < thr) continue;
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        if (prev && prev[i] === r && prev[i + 1] === g && prev[i + 2] === b) continue;
+        const k = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+        counts[k]++; sums[k * 3] += r; sums[k * 3 + 1] += g; sums[k * 3 + 2] += b;
+        if (exact) {
+          const e = (r << 16) | (g << 8) | b;
+          if (e !== last) { last = e; if (!exact.has(e)) { if (exact.size >= h.limit) exact = null; else exact.set(e, 0); } }
+        }
+      }
+    }
+    h.exact = exact;
+  }
+
+  function makeBox(keys, counts) {
+    let rmin = 31, rmax = 0, gmin = 31, gmax = 0, bmin = 31, bmax = 0, count = 0;
+    for (const k of keys) {
+      const r = k >> 10, g = (k >> 5) & 31, b = k & 31;
+      if (r < rmin) rmin = r; if (r > rmax) rmax = r;
+      if (g < gmin) gmin = g; if (g > gmax) gmax = g;
+      if (b < bmin) bmin = b; if (b > bmax) bmax = b;
+      count += counts[k];
+    }
+    return { keys, count, rmin, rmax, gmin, gmax, bmin, bmax, vol: (rmax - rmin + 1) * (gmax - gmin + 1) * (bmax - bmin + 1) };
+  }
+  function splitBox(box, counts) {
+    const rr = (box.rmax - box.rmin) * 1.0, gr = (box.gmax - box.gmin) * 1.2, br = (box.bmax - box.bmin) * 0.9;
+    const ch = (rr >= gr && rr >= br) ? 0 : (gr >= br ? 1 : 2);
+    const val = ch === 0 ? k => k >> 10 : ch === 1 ? k => (k >> 5) & 31 : k => k & 31;
+    const keys = box.keys.slice().sort((a, b) => val(a) - val(b));
+    const half = box.count / 2; let acc = 0, i = 0;
+    for (; i < keys.length - 2; i++) { acc += counts[keys[i]]; if (acc >= half) break; }
+    return [makeBox(keys.slice(0, i + 1), counts), makeBox(keys.slice(i + 1), counts)];
+  }
+
+  function buildPalette(h, maxColors) {
+    const lut = new Int16Array(32768).fill(-1);
+    if (h.exact && h.exact.size > 0 && h.exact.size <= maxColors) {
+      const n = h.exact.size, colors = new Uint8Array(n * 3), map = new Map(); let i = 0;
+      for (const k of h.exact.keys()) { colors[i * 3] = k >> 16; colors[i * 3 + 1] = (k >> 8) & 255; colors[i * 3 + 2] = k & 255; map.set(k, i); i++; }
+      return { n, colors, exact: map, lut };
+    }
+    const { counts, sums } = h;
+    const keys = []; for (let i = 0; i < 32768; i++) if (counts[i]) keys.push(i);
+    let groups;
+    if (keys.length <= maxColors) groups = keys.map(k => [k]);
+    else {
+      const boxes = [makeBox(keys, counts)];
+      while (boxes.length < maxColors) {
+        const byPop = boxes.length < maxColors * 0.6;
+        let best = -1, bestScore = -1;
+        for (let i = 0; i < boxes.length; i++) {
+          const b = boxes[i]; if (b.keys.length < 2) continue;
+          const s = byPop ? b.count : b.count * b.vol;
+          if (s > bestScore) { bestScore = s; best = i; }
+        }
+        if (best < 0) break;
+        boxes.splice(best, 1, ...splitBox(boxes[best], counts));
+      }
+      groups = boxes.map(b => b.keys);
+    }
+    const n = Math.max(1, groups.length), colors = new Uint8Array(n * 3);
+    groups.forEach((g, i) => {
+      let c = 0, r = 0, gg = 0, b = 0;
+      for (const k of g) { c += counts[k]; r += sums[k * 3]; gg += sums[k * 3 + 1]; b += sums[k * 3 + 2]; }
+      colors[i * 3] = Math.round(r / c); colors[i * 3 + 1] = Math.round(gg / c); colors[i * 3 + 2] = Math.round(b / c);
+    });
+    return { n, colors, exact: null, lut };
+  }
+
+  function nearest(pal, r, g, b) {
+    const c = pal.colors; let best = 0, bd = Infinity;
+    for (let i = 0, j = 0; i < pal.n; i++, j += 3) {
+      const dr = c[j] - r, dg = c[j + 1] - g, db = c[j + 2] - b;
+      const dd = 2 * dr * dr + 4 * dg * dg + 3 * db * db;
+      if (dd < bd) { bd = dd; best = i; if (!dd) break; }
+    }
+    return best;
+  }
+  function lookup(pal, r, g, b) {
+    const k = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+    let v = pal.lut[k];
+    if (v < 0) { v = nearest(pal, (r & 248) | 4, (g & 248) | 4, (b & 248) | 4); pal.lut[k] = v; }
+    return v;
+  }
+
+  function mapPixels(d, W, x0, y0, rw, rh, pal, transIdx, thr, dither, prev) {
+    const out = new Uint8Array(rw * rh);
+    const same = i => prev && prev[i] === d[i] && prev[i + 1] === d[i + 1] && prev[i + 2] === d[i + 2];
+    if (pal.exact || !dither) {
+      for (let y = 0, o = 0; y < rh; y++) {
+        for (let x = 0; x < rw; x++, o++) {
+          const i = ((y0 + y) * W + x0 + x) * 4;
+          if (d[i + 3] < thr || same(i)) { out[o] = transIdx; continue; }
+          const r = d[i], g = d[i + 1], b = d[i + 2];
+          let v = pal.exact ? pal.exact.get((r << 16) | (g << 8) | b) : undefined;
+          out[o] = v !== undefined ? v : lookup(pal, r, g, b);
+        }
+      }
+      return out;
+    }
+    // Floyd–Steinberg error diffusion
+    let cur = new Float32Array((rw + 2) * 3), nxt = new Float32Array((rw + 2) * 3);
+    const c = pal.colors;
+    for (let y = 0, o = 0; y < rh; y++) {
+      for (let x = 0; x < rw; x++, o++) {
+        const i = ((y0 + y) * W + x0 + x) * 4;
+        if (d[i + 3] < thr || same(i)) { out[o] = transIdx; continue; }
+        const e = (x + 1) * 3;
+        const r = Math.max(0, Math.min(255, d[i] + cur[e]));
+        const g = Math.max(0, Math.min(255, d[i + 1] + cur[e + 1]));
+        const b = Math.max(0, Math.min(255, d[i + 2] + cur[e + 2]));
+        const pi = lookup(pal, r | 0, g | 0, b | 0);
+        out[o] = pi;
+        const er = r - c[pi * 3], eg = g - c[pi * 3 + 1], eb = b - c[pi * 3 + 2];
+        cur[e + 3] += er * 7 / 16; cur[e + 4] += eg * 7 / 16; cur[e + 5] += eb * 7 / 16;
+        nxt[e - 3] += er * 3 / 16; nxt[e - 2] += eg * 3 / 16; nxt[e - 1] += eb * 3 / 16;
+        nxt[e] += er * 5 / 16; nxt[e + 1] += eg * 5 / 16; nxt[e + 2] += eb * 5 / 16;
+        nxt[e + 3] += er / 16; nxt[e + 4] += eg / 16; nxt[e + 5] += eb / 16;
+      }
+      const t = cur; cur = nxt; nxt = t; nxt.fill(0);
+    }
+    return out;
+  }
+
+  const bitsFor = n => { let b = 1; while ((1 << b) < n) b++; return b; };
+  function writeTable(w, pal, bits) {
+    const size = 1 << bits;
+    for (let i = 0; i < size; i++) {
+      if (i < pal.n) { w.byte(pal.colors[i * 3]); w.byte(pal.colors[i * 3 + 1]); w.byte(pal.colors[i * 3 + 2]); }
+      else { w.byte(0); w.byte(0); w.byte(0); }
+    }
+  }
+
+  /**
+   * frames: [{data: Uint8ClampedArray RGBA (W*H*4), delay: ms}]
+   * opts: {colors, dither, paletteMode:'local'|'global', optimize, playCount (0 = forever), alphaThreshold}
+   */
+  async function encode(frames, W, H, opts = {}, onProgress = () => {}) {
+    const N = frames.length, thr = opts.alphaThreshold ?? 128;
+    let anyTrans = false;
+    outer: for (const f of frames) { const d = f.data; for (let i = 3; i < d.length; i += 4) if (d[i] < thr) { anyTrans = true; break outer; } }
+    const optimize = !!opts.optimize && !anyTrans && N > 1;
+    const needTrans = anyTrans || optimize;
+    const disposal = anyTrans ? 2 : 1;
+    const ncolors = Math.max(2, Math.min(opts.colors || 256, needTrans ? 255 : 256));
+    const w = new ByteWriter(Math.min(64 << 20, Math.max(1 << 16, (W * H * N) >> 1)));
+    w.str('GIF89a'); w.u16(W); w.u16(H);
+
+    let globalPal = null, globalBits = 0;
+    if (opts.paletteMode === 'global') {
+      const h = newHist(ncolors);
+      const total = W * H * N, stride = total > 8e6 ? Math.ceil(Math.sqrt(total / 8e6)) : 1;
+      for (const f of frames) addHist(h, f.data, W, 0, 0, W, H, thr, null, stride);
+      globalPal = buildPalette(h, ncolors);
+      globalBits = bitsFor(globalPal.n + (needTrans ? 1 : 0));
+      w.byte(0x80 | 0x70 | (globalBits - 1)); w.byte(0); w.byte(0);
+      writeTable(w, globalPal, globalBits);
+    } else { w.byte(0x70); w.byte(0); w.byte(0); }
+
+    const playCount = opts.playCount ?? 0;
+    if (playCount !== 1) {
+      w.byte(0x21); w.byte(0xFF); w.byte(11); w.str('NETSCAPE2.0');
+      w.byte(3); w.byte(1); w.u16(playCount === 0 ? 0 : Math.min(65535, playCount - 1)); w.byte(0);
+    }
+
+    let prev = null;
+    for (let fi = 0; fi < N; fi++) {
+      const d = frames[fi].data;
+      let x0 = 0, y0 = 0, x1 = W, y1 = H;
+      const cmp = optimize && prev ? prev : null;
+      if (cmp) {
+        let minX = W, minY = H, maxX = -1, maxY = -1;
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            const i = (y * W + x) * 4;
+            if (cmp[i] !== d[i] || cmp[i + 1] !== d[i + 1] || cmp[i + 2] !== d[i + 2]) {
+              if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y;
+            }
+          }
+        }
+        if (maxX < 0) { x1 = 1; y1 = 1; } else { x0 = minX; y0 = minY; x1 = maxX + 1; y1 = maxY + 1; }
+      }
+      const rw = x1 - x0, rh = y1 - y0;
+      let pal = globalPal;
+      if (!pal) { const h = newHist(ncolors); addHist(h, d, W, x0, y0, rw, rh, thr, cmp); pal = buildPalette(h, ncolors); }
+      const transIdx = needTrans ? pal.n : 0;
+      const indices = mapPixels(d, W, x0, y0, rw, rh, pal, transIdx, thr, !!opts.dither, cmp);
+
+      w.byte(0x21); w.byte(0xF9); w.byte(4);
+      w.byte((disposal << 2) | (needTrans ? 1 : 0));
+      w.u16(Math.max(2, Math.round(frames[fi].delay / 10)));
+      w.byte(needTrans ? transIdx : 0); w.byte(0);
+
+      w.byte(0x2C); w.u16(x0); w.u16(y0); w.u16(rw); w.u16(rh);
+      if (globalPal) { w.byte(0); lzwEncode(w, indices, Math.max(2, globalBits)); }
+      else {
+        const bits = bitsFor(pal.n + (needTrans ? 1 : 0));
+        w.byte(0x80 | (bits - 1)); writeTable(w, pal, bits);
+        lzwEncode(w, indices, Math.max(2, bits));
+      }
+      prev = d;
+      onProgress((fi + 1) / N);
+      await new Promise(r => setTimeout(r, 0));
+    }
+    w.byte(0x3B);
+    return w.result();
+  }
+
+  function quantize(data, W, H, maxColors) {
+    const h = newHist(maxColors); h.exact = null;
+    addHist(h, data, W, 0, 0, W, H, 128, null, W * H > 1e6 ? 2 : 1);
+    const pal = buildPalette(h, maxColors), out = [];
+    for (let i = 0; i < pal.n; i++) out.push([pal.colors[i * 3], pal.colors[i * 3 + 1], pal.colors[i * 3 + 2]]);
+    return out;
+  }
+
+  return { decode, encode, quantize };
+})();
+/* CODEC-END */
+
+/* =====================================================================
+   Editor
+   ===================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const hexToRgb = h => { h = h.replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; };
+const rgbToHex = (r, g, b) => '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+const newCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+const copyCanvas = src => { const c = newCanvas(src.width, src.height); c.getContext('2d').drawImage(src, 0, 0); return c; };
+const fmtBytes = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(2) + ' MB';
+const baseName = n => (n || 'animation').replace(/\.[^.]+$/, '') || 'animation';
+const isGifFile = f => f.type === 'image/gif' || /\.gif$/i.test(f.name);
+
+const ICONS = {
+  pencil: '<path d="M15.5 4.5l4 4L8 20H4v-4z"/><path d="M13 7l4 4"/>',
+  brush: '<path d="M20.5 3.5c-3.5 1.5-7.5 5.5-9.8 9.2l1.6 1.6c3.7-2.3 7.7-6.3 9.2-9.8z"/><path d="M9.8 14.2c-2.3-.4-4.3 1.4-4.3 3.6 0 1.1-.8 2-2 2.2 3 1.6 6.9.6 7.6-2.4.3-1.2-.2-2.6-1.3-3.4z"/>',
+  eraser: '<path d="M8 20h12"/><path d="M4.6 15.4l9.2-9.2a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L11 19.6H8.8z"/><path d="M9 11l4.5 4.5"/>',
+  spray: '<rect x="4" y="10" width="8" height="11" rx="1.5"/><path d="M6 10V7h4v3"/><path d="M15 6h.01M18 4h.01M18 8h.01M21 6h.01M16 10h.01M20.5 10h.01" stroke-width="2.4"/>',
+  line: '<path d="M5 19L19 5"/><circle cx="5" cy="19" r="1.4" fill="currentColor"/><circle cx="19" cy="5" r="1.4" fill="currentColor"/>',
+  rect: '<rect x="4" y="6" width="16" height="12" rx="1"/>',
+  ellipse: '<ellipse cx="12" cy="12" rx="8.5" ry="6.5"/>',
+  fill: '<path d="M4.5 11.5l7-7 8 8-7 7z"/><path d="M4.5 11.5h15"/><path d="M21 16.5s1.5 2 1.5 3a1.5 1.5 0 0 1-3 0c0-1 1.5-3 1.5-3z"/>',
+  picker: '<path d="M14.5 4.5a2.1 2.1 0 0 1 3 0l2 2a2.1 2.1 0 0 1 0 3L17 12l-5-5z"/><path d="M12 7l-7.5 7.5v5h5L17 12"/>',
+  text: '<path d="M5 7V5h14v2"/><path d="M12 5v14"/><path d="M9 19h6"/>',
+  move: '<path d="M12 3v18M3 12h18"/><path d="M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>',
+  select: '<path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M11 4h2M11 20h2M4 11v2M20 11v2"/>',
+  play: '<path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/>',
+  pause: '<rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none"/>',
+  first: '<path d="M6 5v14"/><path d="M18 5l-9 7 9 7z"/>',
+  prev: '<path d="M15 5l-7 7 7 7"/>',
+  next: '<path d="M9 5l7 7-7 7"/>',
+  last: '<path d="M18 5v14"/><path d="M6 5l9 7-9 7z"/>',
+  add: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/>',
+  dup: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  left: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
+  right: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  reverse: '<path d="M4 9h14l-3.5-3.5M20 15H6l3.5 3.5"/>',
+  undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  redo: '<path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
+  save: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/>',
+  open: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  zoomIn: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5M11 8v6M8 11h6"/>',
+  zoomOut: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5M8 11h6"/>',
+  swap: '<path d="M7 4L4 7l3 3"/><path d="M4 7h11a5 5 0 0 1 5 5"/><path d="M17 20l3-3-3-3"/><path d="M20 17H9a5 5 0 0 1-5-5"/>',
+  reset: '<rect x="4" y="4" width="10" height="10" rx="1.5" fill="currentColor"/><rect x="10" y="10" width="10" height="10" rx="1.5"/>',
+  panel: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>',
+};
+const icon = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[n] || ''}</svg>`;
+
+const TOOLS = [
+  { id: 'pencil', key: 'p', name: 'Pencil', hint: 'Hard-edged pixels. Left click = primary, right click = secondary. Alt+click picks a color.' },
+  { id: 'brush', key: 'b', name: 'Brush', hint: 'Smooth anti-aliased brush. Right click paints with the secondary color.' },
+  { id: 'eraser', key: 'e', name: 'Eraser', hint: 'Erases to transparency. Turn on smooth edges for a soft round eraser.' },
+  { id: 'spray', key: 'a', name: 'Spray', hint: 'Airbrush speckles. Size sets the spray radius; hold still to build up.' },
+  { sep: true },
+  { id: 'line', key: 'l', name: 'Line', hint: 'Drag to draw a line. Hold Shift to snap to 45° angles.' },
+  { id: 'rect', key: 'r', name: 'Rectangle', hint: 'Drag to draw. Hold Shift for a square.' },
+  { id: 'ellipse', key: 'c', name: 'Ellipse', hint: 'Drag to draw. Hold Shift for a circle.' },
+  { id: 'fill', key: 'g', name: 'Fill bucket', hint: 'Click to flood-fill. Stays inside the selection if there is one.' },
+  { sep: true },
+  { id: 'picker', key: 'i', name: 'Eyedropper', hint: 'Left click sets primary, right click sets secondary color.' },
+  { id: 'text', key: 't', name: 'Text', hint: 'Click where the text should go. You can stamp it on every frame for captions.' },
+  { id: 'move', key: 'v', name: 'Move', hint: 'Drag to shift the frame content. Optionally move all frames at once.' },
+  { id: 'select', key: 'm', name: 'Select', hint: 'Drag a rectangle. Painting is clipped to it; crop, erase or fill it.' },
+];
+const PAINT_TOOLS = ['pencil', 'brush', 'eraser', 'spray', 'line', 'rect', 'ellipse', 'fill'];
+const DEFAULT_PALETTE = ['#000000', '#1d2b53', '#7e2553', '#008751', '#ab5236', '#5f574f', '#c2c3c7', '#fff1e8',
+  '#ff004d', '#ffa300', '#ffec27', '#00e436', '#29adff', '#83769c', '#ff77a8', '#ffccaa',
+  '#ffffff', '#808080', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff'];
+const ZOOMS = [0.05, 0.1, 0.15, 0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 48, 64];
+
+// ---------- State ----------
+const S = {
+  tool: 'pencil', primary: '#000000', secondary: '#ffffff', size: 3, opacity: 100, shapeStyle: 'outline',
+  antialias: false, tolerance: 10, contiguous: true, moveAll: false, wrap: false,
+  zoom: 1, grid: false, onion: false, onionOpacity: 30, onionNext: false, speed: 1, playCount: 0,
+};
+let doc = { w: 0, h: 0, frames: [] };
+let cur = 0, selFrames = new Set(), selection = null, dirty = false, fileName = 'animation';
+let playing = false, stroke = null, preview = null, frameClip = null;
+let palette = DEFAULT_PALETTE.slice(), recent = [];
+let fid = 1;
+
+const stage = $('#stage'), wrap = $('#wrap'), view = $('#view'), vctx = view.getContext('2d');
+const gridEl = $('#gridEl'), selBox = $('#selBox'), cursorEl = $('#brushCursor'), framesEl = $('#frames');
+const work = newCanvas(1, 1), wctx = work.getContext('2d');
+const strokeC = newCanvas(1, 1), sctx = strokeC.getContext('2d');
+
+// ---------- Frames ----------
+function makeFrame(w, h, delay = 100) {
+  const canvas = newCanvas(w, h);
+  return { id: fid++, canvas, ctx: canvas.getContext('2d', { willReadFrequently: true }), delay };
+}
+function cloneFrame(f) { const n = makeFrame(doc.w, doc.h, f.delay); n.ctx.drawImage(f.canvas, 0, 0); return n; }
+// Builds a frame of the given size from any canvas-like source, scaled to fit and centered.
+function fitFrame(src, w, h, delay) {
+  const f = makeFrame(w, h, delay ?? src.delay ?? 100);
+  const c = src.canvas || src, sw = c.width, sh = c.height;
+  if (sw === w && sh === h) f.ctx.drawImage(c, 0, 0);
+  else {
+    const s = Math.min(w / sw, h / sh), dw = Math.max(1, Math.round(sw * s)), dh = Math.max(1, Math.round(sh * s));
+    f.ctx.imageSmoothingQuality = 'high';
+    f.ctx.drawImage(c, Math.round((w - dw) / 2), Math.round((h - dh) / 2), dw, dh);
+  }
+  return f;
+}
+const curFrame = () => doc.frames[cur];
+const hasDoc = () => doc.frames.length > 0;
+function selectedFrames() { const l = doc.frames.filter(f => selFrames.has(f)); return l.length ? l : [curFrame()]; }
+function needDoc() { if (!hasDoc()) { toast('Create or open an animation first'); return false; } return true; }
+
+// ---------- Undo / redo ----------
+const undoStack = [], redoStack = [];
+let undoBytes = 0;
+const UNDO_LIMIT = 600 * 1024 * 1024;
+const snapFrames = list => ({ type: 'frames', items: list.map(f => ({ f, data: f.ctx.getImageData(0, 0, doc.w, doc.h) })) });
+const snapStruct = () => ({ type: 'struct', frames: doc.frames.slice(), delays: doc.frames.map(f => f.delay), cur });
+const snapDoc = () => ({ type: 'doc', w: doc.w, h: doc.h, cur, items: doc.frames.map(f => ({ f, delay: f.delay, data: f.ctx.getImageData(0, 0, doc.w, doc.h) })) });
+const sizeOf = e => e.items ? e.items.reduce((s, i) => s + i.data.data.length, 0) : 1024;
+const inverseOf = e => e.type === 'frames' ? snapFrames(e.items.map(i => i.f)) : e.type === 'struct' ? snapStruct() : snapDoc();
+
+function pushUndo(e) {
+  e.bytes = sizeOf(e); undoStack.push(e); undoBytes += e.bytes; redoStack.length = 0;
+  while (undoStack.length > 1 && (undoBytes > UNDO_LIMIT || undoStack.length > 200)) undoBytes -= undoStack.shift().bytes;
+  markDirty(); updateUndoUI();
+}
+function applySnap(e) {
+  if (e.type === 'frames') {
+    for (const { f, data } of e.items) { f.ctx.putImageData(data, 0, 0); updateThumb(f); }
+    render(); return;
+  }
+  if (e.type === 'struct') {
+    doc.frames = e.frames.slice();
+    e.frames.forEach((f, i) => f.delay = e.delays[i]);
+  } else {
+    const sizeChanged = doc.w !== e.w || doc.h !== e.h;
+    doc.w = e.w; doc.h = e.h;
+    doc.frames = e.items.map(({ f, delay, data }) => {
+      if (f.canvas.width !== e.w || f.canvas.height !== e.h) { f.canvas.width = e.w; f.canvas.height = e.h; }
+      f.ctx.putImageData(data, 0, 0); f.delay = delay; return f;
+    });
+    if (sizeChanged) selection = null;
+  }
+  cur = clamp(e.cur, 0, doc.frames.length - 1);
+  selFrames = new Set([curFrame()]);
+  refreshAll();
+}
+function undo() {
+  stop(); if (!undoStack.length) return;
+  const e = undoStack.pop(); undoBytes -= e.bytes;
+  const inv = inverseOf(e); inv.bytes = sizeOf(inv); redoStack.push(inv);
+  applySnap(e); markDirty(); updateUndoUI();
+}
+function redo() {
+  stop(); if (!redoStack.length) return;
+  const e = redoStack.pop();
+  const inv = inverseOf(e); inv.bytes = sizeOf(inv); undoStack.push(inv); undoBytes += inv.bytes;
+  applySnap(e); markDirty(); updateUndoUI();
+}
+function updateUndoUI() {
+  $$('[data-cmd="undo"]').forEach(b => b.disabled = !undoStack.length);
+  $$('[data-cmd="redo"]').forEach(b => b.disabled = !redoStack.length);
+}
+function markDirty() { dirty = true; updateTitle(); }
+function updateTitle() { document.title = hasDoc() ? `${dirty ? '• ' : ''}${fileName} — GIF Studio` : 'GIF Studio'; }
+
+// ---------- Document lifecycle ----------
+function setDoc(w, h, frames, name) {
+  stop();
+  doc = { w, h, frames };
+  cur = 0; selFrames = new Set([frames[0]]); selection = null; stroke = null;
+  undoStack.length = 0; redoStack.length = 0; undoBytes = 0;
+  fileName = name || 'animation'; dirty = false;
+  wrap.classList.remove('hidden'); $('#emptyState').style.display = 'none';
+  resizeView(); fitZoom(); refreshAll(); updateTitle();
+}
+function confirmDiscard() { return !dirty || confirm('Discard unsaved changes to the current animation?'); }
+function refreshAll() { resizeView(); buildTimeline(); updatePanel(); updateSelBox(); render(); updateStatus(); updateUndoUI(); }
+function structureChanged() { buildTimeline(); updatePanel(); render(); updateStatus(); }
+function frameChanged() { markTimeline(); updatePanel(); render(); updateStatus(); }
+
+// ---------- View / zoom ----------
+function resizeView() {
+  if (view.width !== doc.w || view.height !== doc.h) {
+    view.width = work.width = strokeC.width = doc.w;
+    view.height = work.height = strokeC.height = doc.h;
+  }
+  applyZoom();
+}
+function applyZoom() {
+  const z = S.zoom;
+  wrap.style.width = doc.w * z + 'px'; wrap.style.height = doc.h * z + 'px';
+  view.style.imageRendering = z >= 1 ? 'pixelated' : 'auto';
+  gridEl.style.display = S.grid && z >= 4 ? 'block' : 'none';
+  gridEl.style.backgroundSize = `${z}px ${z}px`;
+  $('#zoomLabel').textContent = Math.round(z * 100) + '%';
+  updateSelBox();
+}
+function setZoom(z, cx, cy) {
+  if (!hasDoc()) return;
+  z = clamp(z, 0.05, 64);
+  const sr = stage.getBoundingClientRect();
+  if (cx == null) { cx = sr.left + sr.width / 2; cy = sr.top + sr.height / 2; }
+  const r = wrap.getBoundingClientRect();
+  const px = (cx - r.left) / S.zoom, py = (cy - r.top) / S.zoom;
+  S.zoom = z; applyZoom();
+  const r2 = wrap.getBoundingClientRect();
+  stage.scrollLeft += r2.left + px * z - cx;
+  stage.scrollTop += r2.top + py * z - cy;
+  updateStatus();
+}
+function zoomStep(dir, cx, cy) {
+  const z = S.zoom;
+  const next = dir > 0 ? ZOOMS.find(v => v > z + 1e-6) : [...ZOOMS].reverse().find(v => v < z - 1e-6);
+  if (next) setZoom(next, cx, cy);
+}
+function fitZoom() {
+  if (!hasDoc()) return;
+  const pad = window.innerWidth < 900 ? 40 : 100;
+  const z = Math.min((stage.clientWidth - pad) / doc.w, (stage.clientHeight - pad) / doc.h);
+  S.zoom = z >= 1 ? clamp(Math.floor(z), 1, 16) : Math.max(0.05, Math.floor(z * 100) / 100);
+  applyZoom(); updateStatus();
+}
+
+// ---------- Rendering ----------
+function render() {
+  if (!hasDoc()) return;
+  const W = doc.w, H = doc.h;
+  vctx.clearRect(0, 0, W, H);
+  if (playing) { vctx.drawImage(doc.frames[playIdx].canvas, 0, 0); return; }
+  const f = curFrame();
+  if (preview) vctx.drawImage(preview, 0, 0);
+  else if (stroke && stroke.kind === 'move') drawMoved(vctx, f.canvas, stroke.dx, stroke.dy, S.wrap);
+  else if (stroke && stroke.kind === 'paint') {
+    wctx.clearRect(0, 0, W, H); wctx.drawImage(f.canvas, 0, 0); applyStroke(wctx);
+    vctx.drawImage(work, 0, 0);
+  } else vctx.drawImage(f.canvas, 0, 0);
+  if (S.onion && !preview && doc.frames.length > 1) {
+    vctx.save(); vctx.globalAlpha = S.onionOpacity / 100;
+    if (cur > 0) vctx.drawImage(doc.frames[cur - 1].canvas, 0, 0);
+    if (S.onionNext && cur < doc.frames.length - 1) { vctx.globalAlpha *= 0.7; vctx.drawImage(doc.frames[cur + 1].canvas, 0, 0); }
+    vctx.restore();
+  }
+}
+function applyStroke(ctx) {
+  ctx.save();
+  if (selection) { ctx.beginPath(); ctx.rect(selection.x, selection.y, selection.w, selection.h); ctx.clip(); }
+  ctx.globalAlpha = S.opacity / 100;
+  ctx.globalCompositeOperation = stroke.erase ? 'destination-out' : 'source-over';
+  ctx.drawImage(strokeC, 0, 0);
+  ctx.restore();
+}
+function drawMoved(ctx, src, dx, dy, wrapAround) {
+  if (!wrapAround) { ctx.drawImage(src, dx, dy); return; }
+  const W = doc.w, H = doc.h, mx = ((dx % W) + W) % W, my = ((dy % H) + H) % H;
+  ctx.drawImage(src, mx, my); ctx.drawImage(src, mx - W, my);
+  ctx.drawImage(src, mx, my - H); ctx.drawImage(src, mx - W, my - H);
+}
+
+// ---------- Pointer & painting ----------
+let panning = null, stampC = null;
+function docPoint(e, r = view.getBoundingClientRect()) {
+  return { x: (e.clientX - r.left) / r.width * doc.w, y: (e.clientY - r.top) / r.height * doc.h };
+}
+function makeStamp(size, color) {
+  const c = newCanvas(size, size), x = c.getContext('2d'); x.fillStyle = color;
+  if (size <= 2) x.fillRect(0, 0, size, size);
+  else {
+    const r = size / 2;
+    for (let yy = 0; yy < size; yy++) {
+      const dy = yy + 0.5 - r, half = Math.sqrt(Math.max(0, r * r - dy * dy));
+      const a = Math.round(r - half), b = Math.round(r + half);
+      if (b > a) x.fillRect(a, yy, b - a, 1);
+    }
+  }
+  return c;
+}
+function stampLine(a, b) {
+  const size = S.size, off = Math.floor((size - 1) / 2);
+  let x0 = Math.floor(a.x), y0 = Math.floor(a.y); const x1 = Math.floor(b.x), y1 = Math.floor(b.y);
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  const step = Math.max(1, Math.floor(size / 4));
+  let err = dx + dy, n = 0;
+  for (;;) {
+    if (n++ % step === 0 || (x0 === x1 && y0 === y1)) sctx.drawImage(stampC, x0 - off, y0 - off);
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+function sprayAt(p) {
+  const r = Math.max(2, S.size), n = Math.max(3, Math.round(r * r / 14));
+  sctx.fillStyle = stroke.color;
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * r;
+    sctx.fillRect(Math.floor(p.x + Math.cos(a) * d), Math.floor(p.y + Math.sin(a) * d), 1, 1);
+  }
+}
+function paintSegment(a, b) {
+  const t = stroke.tool;
+  if (t === 'spray') { sprayAt(b); return; }
+  if (t === 'pencil' || (t === 'eraser' && !S.antialias)) { stampLine(a, b); return; }
+  sctx.strokeStyle = sctx.fillStyle = stroke.color;
+  sctx.lineWidth = S.size; sctx.lineCap = 'round'; sctx.lineJoin = 'round';
+  sctx.beginPath();
+  if (Math.hypot(b.x - a.x, b.y - a.y) < 0.01) { sctx.arc(b.x, b.y, S.size / 2, 0, Math.PI * 2); sctx.fill(); }
+  else { sctx.moveTo(a.x, a.y); sctx.lineTo(b.x, b.y); sctx.stroke(); }
+}
+
+// Pixel-exact ellipse spans (used when anti-aliasing is off)
+function ellipseSpans(x, y, w, h, cb) {
+  const cx = x + w / 2, cy = y + h / 2, rx = w / 2, ry = h / 2;
+  for (let row = y; row < y + h; row++) {
+    const dy = (row + 0.5 - cy) / ry; if (Math.abs(dy) > 1) continue;
+    const half = rx * Math.sqrt(1 - dy * dy);
+    cb(row, Math.round(cx - half), Math.round(cx + half));
+  }
+}
+function drawShape(p, constrain) {
+  const W = doc.w, H = doc.h; sctx.clearRect(0, 0, W, H);
+  const t = stroke.tool, aa = S.antialias, s = S.size;
+  let x0 = stroke.start.x, y0 = stroke.start.y, x1 = p.x, y1 = p.y;
+  if (constrain) {
+    const dx = x1 - x0, dy = y1 - y0;
+    if (t === 'line') {
+      const ang = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4), len = Math.hypot(dx, dy);
+      x1 = x0 + Math.cos(ang) * len; y1 = y0 + Math.sin(ang) * len;
+    } else { const d = Math.max(Math.abs(dx), Math.abs(dy)); x1 = x0 + Math.sign(dx || 1) * d; y1 = y0 + Math.sign(dy || 1) * d; }
+  }
+  const outline = stroke.color, fillCol = S.shapeStyle === 'outline' ? null : S.shapeStyle === 'filled' ? stroke.color : stroke.alt;
+  const doOutline = S.shapeStyle !== 'filled';
+  if (t === 'line') {
+    if (aa) {
+      sctx.strokeStyle = outline; sctx.lineWidth = s; sctx.lineCap = 'round';
+      sctx.beginPath(); sctx.moveTo(Math.floor(x0) + 0.5, Math.floor(y0) + 0.5); sctx.lineTo(Math.floor(x1) + 0.5, Math.floor(y1) + 0.5); sctx.stroke();
+    } else stampLine({ x: x0, y: y0 }, { x: x1, y: y1 });
+    return;
+  }
+  const ax = Math.floor(Math.min(x0, x1)), ay = Math.floor(Math.min(y0, y1));
+  const w = Math.floor(Math.max(x0, x1)) - ax + 1, h = Math.floor(Math.max(y0, y1)) - ay + 1;
+  const lw = Math.min(s, Math.ceil(Math.min(w, h) / 2));
+  if (t === 'rect') {
+    if (fillCol) { sctx.fillStyle = fillCol; doOutline ? sctx.fillRect(ax + lw, ay + lw, w - 2 * lw, h - 2 * lw) : sctx.fillRect(ax, ay, w, h); }
+    if (doOutline) {
+      sctx.fillStyle = outline;
+      sctx.fillRect(ax, ay, w, lw); sctx.fillRect(ax, ay + h - lw, w, lw);
+      sctx.fillRect(ax, ay, lw, h); sctx.fillRect(ax + w - lw, ay, lw, h);
+    }
+    return;
+  }
+  // ellipse
+  if (aa) {
+    const cx = ax + w / 2, cy = ay + h / 2;
+    if (fillCol) { sctx.fillStyle = fillCol; sctx.beginPath(); sctx.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2); sctx.fill(); }
+    if (doOutline) {
+      sctx.strokeStyle = outline; sctx.lineWidth = lw; sctx.beginPath();
+      sctx.ellipse(cx, cy, Math.max(0.5, w / 2 - lw / 2), Math.max(0.5, h / 2 - lw / 2), 0, 0, Math.PI * 2); sctx.stroke();
+    }
+    return;
+  }
+  const inner = new Map();
+  if (doOutline && w > 2 * lw && h > 2 * lw) ellipseSpans(ax + lw, ay + lw, w - 2 * lw, h - 2 * lw, (row, a, b) => inner.set(row, [a, b]));
+  if (fillCol) {
+    sctx.fillStyle = fillCol;
+    if (doOutline) inner.forEach(([a, b], row) => sctx.fillRect(a, row, b - a, 1));
+    else ellipseSpans(ax, ay, w, h, (row, a, b) => sctx.fillRect(a, row, b - a, 1));
+  }
+  if (doOutline) {
+    sctx.fillStyle = outline;
+    ellipseSpans(ax, ay, w, h, (row, a, b) => {
+      const iv = inner.get(row);
+      if (iv && iv[1] > iv[0]) { sctx.fillRect(a, row, iv[0] - a, 1); sctx.fillRect(iv[1], row, b - iv[1], 1); }
+      else sctx.fillRect(a, row, b - a, 1);
+    });
+  }
+}
+
+function onDown(e) {
+  if (!hasDoc()) return;
+  if (e.button === 1) {
+    e.preventDefault();
+    panning = { x: e.clientX, y: e.clientY, sl: stage.scrollLeft, st: stage.scrollTop };
+    view.setPointerCapture(e.pointerId); return;
+  }
+  if (e.button > 2) return;
+  stop();
+  const p = docPoint(e), px = Math.floor(p.x), py = Math.floor(p.y);
+  const right = e.button === 2;
+  const color = right ? S.secondary : S.primary, alt = right ? S.primary : S.secondary;
+  const t = S.tool;
+  if (e.altKey && PAINT_TOOLS.includes(t)) { pickColor(px, py, right); return; }
+  if (t === 'fill') { floodFill(px, py, color); return; }
+  if (t === 'picker') { pickColor(px, py, right); return; }
+  if (t === 'text') { textDialog(px, py, color, alt); return; }
+  view.setPointerCapture(e.pointerId);
+  if (t === 'move') { stroke = { kind: 'move', sx: p.x, sy: p.y, dx: 0, dy: 0 }; return; }
+  if (t === 'select') {
+    const sx = clamp(px, 0, doc.w - 1), sy = clamp(py, 0, doc.h - 1);
+    stroke = { kind: 'select', sx, sy }; selection = { x: sx, y: sy, w: 1, h: 1 }; updateSelBox(); return;
+  }
+  sctx.clearRect(0, 0, doc.w, doc.h);
+  stroke = { kind: 'paint', tool: t, color: t === 'eraser' ? '#000000' : color, alt, erase: t === 'eraser', start: p, last: p, shape: ['line', 'rect', 'ellipse'].includes(t) };
+  if (stroke.shape) drawShape(p, e.shiftKey);
+  else {
+    stampC = makeStamp(S.size, stroke.color);
+    paintSegment(p, p);
+    if (t === 'spray') stroke.timer = setInterval(() => { if (stroke) { sprayAt(stroke.last); render(); } }, 35);
+  }
+  render();
+}
+function onMove(e) {
+  if (panning) {
+    stage.scrollLeft = panning.sl - (e.clientX - panning.x);
+    stage.scrollTop = panning.st - (e.clientY - panning.y); return;
+  }
+  if (!hasDoc()) return;
+  const r = view.getBoundingClientRect(), p = docPoint(e, r);
+  updateCursor(p); updatePointerStatus(p);
+  if (!stroke) return;
+  if (stroke.kind === 'paint') {
+    if (stroke.shape) drawShape(p, e.shiftKey);
+    else {
+      const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+      for (const ev of evs.length ? evs : [e]) { const q = docPoint(ev, r); paintSegment(stroke.last, q); stroke.last = q; }
+    }
+    render();
+  } else if (stroke.kind === 'move') {
+    stroke.dx = Math.round(p.x - stroke.sx); stroke.dy = Math.round(p.y - stroke.sy); render();
+    $('#stSel').textContent = `Offset ${stroke.dx}, ${stroke.dy}`;
+  } else if (stroke.kind === 'select') {
+    const x = clamp(Math.floor(p.x), 0, doc.w - 1), y = clamp(Math.floor(p.y), 0, doc.h - 1);
+    selection = { x: Math.min(x, stroke.sx), y: Math.min(y, stroke.sy), w: Math.abs(x - stroke.sx) + 1, h: Math.abs(y - stroke.sy) + 1 };
+    updateSelBox(); updateStatus();
+  }
+}
+function onUp() {
+  if (panning) { panning = null; return; }
+  if (!stroke) return;
+  const s = stroke;
+  if (s.timer) clearInterval(s.timer);
+  if (s.kind === 'paint') {
+    const f = curFrame();
+    pushUndo(snapFrames([f]));
+    applyStroke(f.ctx);
+    stroke = null; updateThumb(f);
+  } else if (s.kind === 'move') {
+    stroke = null;
+    if (s.dx || s.dy) {
+      const list = S.moveAll ? doc.frames.slice() : [curFrame()];
+      pushUndo(snapFrames(list));
+      for (const f of list) { const tmp = copyCanvas(f.canvas); f.ctx.clearRect(0, 0, doc.w, doc.h); drawMoved(f.ctx, tmp, s.dx, s.dy, S.wrap); updateThumb(f); }
+    }
+  } else stroke = null;
+  render(); updateStatus();
+}
+
+function pickColor(x, y, secondary) {
+  if (x < 0 || y < 0 || x >= doc.w || y >= doc.h) return;
+  const d = curFrame().ctx.getImageData(x, y, 1, 1).data;
+  if (d[3] === 0) { toast('That pixel is transparent'); return; }
+  setColor(secondary ? 'secondary' : 'primary', rgbToHex(d[0], d[1], d[2]));
+}
+
+function floodFill(x, y, color) {
+  const W = doc.w, H = doc.h;
+  if (x < 0 || y < 0 || x >= W || y >= H) return;
+  const sel = selection || { x: 0, y: 0, w: W, h: H };
+  if (x < sel.x || y < sel.y || x >= sel.x + sel.w || y >= sel.y + sel.h) return;
+  const bx0 = sel.x, by0 = sel.y, bx1 = sel.x + sel.w, by1 = sel.y + sel.h;
+  const f = curFrame(), img = f.ctx.getImageData(0, 0, W, H), d = img.data;
+  const before = new ImageData(new Uint8ClampedArray(d), W, H);
+  const i0 = (y * W + x) * 4, tr = d[i0], tg = d[i0 + 1], tb = d[i0 + 2], ta = d[i0 + 3];
+  const tol = S.tolerance * 2.55;
+  const match = k => { const i = k * 4; return Math.abs(d[i] - tr) <= tol && Math.abs(d[i + 1] - tg) <= tol && Math.abs(d[i + 2] - tb) <= tol && Math.abs(d[i + 3] - ta) <= tol; };
+  const mask = new Uint8Array(W * H);
+  if (S.contiguous) {
+    const st = [x, y];
+    while (st.length) {
+      const yy = st.pop(), xx = st.pop();
+      if (mask[yy * W + xx]) continue;
+      let lx = xx, rx = xx;
+      while (lx > bx0 && !mask[yy * W + lx - 1] && match(yy * W + lx - 1)) lx--;
+      while (rx < bx1 - 1 && !mask[yy * W + rx + 1] && match(yy * W + rx + 1)) rx++;
+      for (let i = lx; i <= rx; i++) mask[yy * W + i] = 1;
+      for (const ny of [yy - 1, yy + 1]) {
+        if (ny < by0 || ny >= by1) continue;
+        let inSpan = false;
+        for (let i = lx; i <= rx; i++) {
+          const k = ny * W + i;
+          if (!mask[k] && match(k)) { if (!inSpan) { st.push(i, ny); inSpan = true; } } else inSpan = false;
+        }
+      }
+    }
+  } else {
+    for (let yy = by0; yy < by1; yy++) for (let xx = bx0; xx < bx1; xx++) { const k = yy * W + xx; if (match(k)) mask[k] = 1; }
+  }
+  const [r, g, b] = hexToRgb(color), a = S.opacity / 100;
+  for (let k = 0; k < mask.length; k++) {
+    if (!mask[k]) continue;
+    const i = k * 4, da = d[i + 3] / 255, oa = a + da * (1 - a);
+    if (oa <= 0) continue;
+    d[i] = (r * a + d[i] * da * (1 - a)) / oa;
+    d[i + 1] = (g * a + d[i + 1] * da * (1 - a)) / oa;
+    d[i + 2] = (b * a + d[i + 2] * da * (1 - a)) / oa;
+    d[i + 3] = oa * 255;
+  }
+  pushUndo({ type: 'frames', items: [{ f, data: before }] });
+  f.ctx.putImageData(img, 0, 0); updateThumb(f); render();
+}
+
+function updateCursor(p) {
+  const t = S.tool;
+  if (!p || stroke?.kind === 'move' || !['pencil', 'brush', 'eraser', 'spray'].includes(t)) { cursorEl.style.display = 'none'; return; }
+  const z = S.zoom; let size = S.size, x, y, round = true;
+  if (t === 'spray') { size = Math.max(2, S.size) * 2; x = p.x - size / 2; y = p.y - size / 2; }
+  else if (t === 'pencil' || (t === 'eraser' && !S.antialias)) { const off = Math.floor((size - 1) / 2); x = Math.floor(p.x) - off; y = Math.floor(p.y) - off; round = size > 2; }
+  else { x = p.x - size / 2; y = p.y - size / 2; }
+  if (size * z < 4) { cursorEl.style.display = 'none'; return; }
+  Object.assign(cursorEl.style, { display: 'block', left: x * z + 'px', top: y * z + 'px', width: size * z + 'px', height: size * z + 'px', borderRadius: round ? '50%' : '0' });
+}
+function updateSelBox() {
+  if (!selection || !hasDoc()) { selBox.style.display = 'none'; return; }
+  const z = S.zoom;
+  Object.assign(selBox.style, { display: 'block', left: selection.x * z + 'px', top: selection.y * z + 'px', width: selection.w * z + 'px', height: selection.h * z + 'px' });
+}
+
+// ---------- Timeline ----------
+function thumbSize() { const s = Math.min(86 / doc.w, 64 / doc.h); return [Math.max(1, Math.round(doc.w * s)), Math.max(1, Math.round(doc.h * s))]; }
+function updateThumb(f) {
+  if (!f.thumb) return;
+  const c = f.thumb.getContext('2d');
+  c.clearRect(0, 0, f.thumb.width, f.thumb.height);
+  c.imageSmoothingEnabled = f.thumb.width < doc.w;
+  c.imageSmoothingQuality = 'medium';
+  c.drawImage(f.canvas, 0, 0, f.thumb.width, f.thumb.height);
+}
+function buildTimeline() {
+  framesEl.innerHTML = '';
+  if (!hasDoc()) return;
+  const [tw, th] = thumbSize(), frag = document.createDocumentFragment();
+  doc.frames.forEach((f, i) => {
+    const el = document.createElement('div');
+    el.className = 'frame'; el.draggable = true; el.dataset.i = i;
+    if (!f.thumb) f.thumb = newCanvas(tw, th);
+    if (f.thumb.width !== tw || f.thumb.height !== th) { f.thumb.width = tw; f.thumb.height = th; }
+    f.thumb.style.width = tw + 'px'; f.thumb.style.height = th + 'px';
+    updateThumb(f);
+    const box = document.createElement('div'); box.className = 'thumb bg-checker'; box.style.backgroundSize = '10px 10px'; box.style.backgroundPosition = '0 0,0 5px,5px -5px,-5px 0';
+    box.append(f.thumb);
+    const lbl = document.createElement('div'); lbl.className = 'lbl';
+    lbl.innerHTML = `<span>${i + 1}</span><span>${f.delay} ms</span>`;
+    el.append(box, lbl); frag.append(el); f.el = el;
+  });
+  framesEl.append(frag);
+  markTimeline();
+}
+function markTimeline() {
+  doc.frames.forEach((f, i) => { f.el?.classList.toggle('cur', i === cur); f.el?.classList.toggle('sel', selFrames.has(f) && selFrames.size > 1); });
+  curFrame()?.el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+let dragFrom = -1;
+framesEl.addEventListener('click', e => {
+  const el = e.target.closest('.frame'); if (!el) return;
+  stop();
+  const i = +el.dataset.i, f = doc.frames[i];
+  if (e.shiftKey) { const a = Math.min(cur, i), b = Math.max(cur, i); selFrames = new Set(doc.frames.slice(a, b + 1)); cur = i; }
+  else if (e.ctrlKey || e.metaKey) {
+    if (selFrames.has(f) && selFrames.size > 1) { selFrames.delete(f); if (i === cur) cur = doc.frames.findIndex(x => selFrames.has(x)); }
+    else { selFrames.add(f); cur = i; }
+  } else { selFrames = new Set([f]); cur = i; }
+  frameChanged();
+});
+framesEl.addEventListener('dblclick', e => { if (e.target.closest('.frame')) { $('#delay').focus(); $('#delay').select(); } });
+framesEl.addEventListener('dragstart', e => {
+  const el = e.target.closest('.frame'); if (!el) return;
+  dragFrom = +el.dataset.i; el.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(dragFrom));
+});
+const clearDropMarks = () => $$('.frame', framesEl).forEach(x => x.classList.remove('drop-before', 'drop-after', 'dragging'));
+framesEl.addEventListener('dragover', e => {
+  if (dragFrom < 0) return;
+  e.preventDefault();
+  const el = e.target.closest('.frame');
+  $$('.frame', framesEl).forEach(x => x.classList.remove('drop-before', 'drop-after'));
+  if (el) { const r = el.getBoundingClientRect(); el.classList.add(e.clientX < r.left + r.width / 2 ? 'drop-before' : 'drop-after'); }
+});
+framesEl.addEventListener('drop', e => {
+  if (dragFrom < 0) return;
+  e.preventDefault(); e.stopPropagation();
+  const el = e.target.closest('.frame');
+  let to = doc.frames.length;
+  if (el) { const r = el.getBoundingClientRect(); to = +el.dataset.i + (e.clientX < r.left + r.width / 2 ? 0 : 1); }
+  const from = dragFrom; dragFrom = -1; clearDropMarks();
+  moveFrameTo(from, to);
+});
+framesEl.addEventListener('dragend', () => { dragFrom = -1; clearDropMarks(); });
+
+// ---------- Playback ----------
+let playIdx = 0, lastTs = 0, acc = 0, rafId = 0, playingEl = null;
+function play() {
+  if (!needDoc()) return;
+  if (doc.frames.length < 2) { toast('Add more frames to play an animation'); return; }
+  playing = true; playIdx = cur; acc = 0; lastTs = performance.now();
+  cursorEl.style.display = 'none';
+  setPlayIcon(); rafId = requestAnimationFrame(tick);
+}
+function tick(ts) {
+  if (!playing) return;
+  let dt = ts - lastTs; lastTs = ts; if (dt > 1000) dt = 0;
+  acc += dt; let changed = false;
+  for (;;) {
+    const d = Math.max(10, doc.frames[playIdx].delay / S.speed);
+    if (acc < d) break;
+    acc -= d; playIdx = (playIdx + 1) % doc.frames.length; changed = true;
+  }
+  if (changed) {
+    render();
+    playingEl?.classList.remove('playing');
+    playingEl = doc.frames[playIdx].el; playingEl?.classList.add('playing');
+    playingEl?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    $('#stFrames').textContent = `${playIdx + 1} / ${doc.frames.length}`;
+  }
+  rafId = requestAnimationFrame(tick);
+}
+function stop() {
+  if (!playing) return;
+  playing = false; cancelAnimationFrame(rafId);
+  playingEl?.classList.remove('playing'); playingEl = null;
+  cur = playIdx; selFrames = new Set([curFrame()]);
+  setPlayIcon(); frameChanged();
+}
+function setPlayIcon() { $('#playBtn').innerHTML = icon(playing ? 'pause' : 'play'); }
+function goFrame(i) { if (!hasDoc()) return; stop(); cur = clamp(i, 0, doc.frames.length - 1); selFrames = new Set([curFrame()]); frameChanged(); }
+
+// ---------- Panel & status ----------
+function updatePanel() {
+  const t = TOOLS.find(x => x.id === S.tool);
+  $('#toolTitle').textContent = t.name;
+  $('#toolHint').textContent = t.hint;
+  $$('#toolOpts .opt').forEach(el => el.style.display = el.dataset.for.split(' ').includes(S.tool) ? '' : 'none');
+  $$('#tools .ibtn').forEach(b => b.classList.toggle('active', b.dataset.tool === S.tool));
+  if (!hasDoc()) { $('#frameInfo').textContent = 'No animation open'; return; }
+  const f = curFrame(), n = selectedFrames().length;
+  if (document.activeElement !== $('#delay')) $('#delay').value = f.delay;
+  $('#frameInfo').textContent = n > 1 ? `${n} frames selected — delay changes apply to all of them.` : `Frame ${cur + 1} of ${doc.frames.length} · ${(1000 / f.delay).toFixed(1)} fps`;
+}
+function totalDuration() { return doc.frames.reduce((s, f) => s + f.delay, 0); }
+function updateStatus() {
+  if (!hasDoc()) { $('#tlInfo').textContent = ''; return; }
+  $('#stSize').textContent = `${doc.w} × ${doc.h}`;
+  $('#stFrames').textContent = `${cur + 1} / ${doc.frames.length}`;
+  $('#stDur').textContent = (totalDuration() / 1000).toFixed(2) + ' s';
+  $('#stSel').textContent = selection ? `Selection ${selection.w} × ${selection.h} at ${selection.x}, ${selection.y}` : '';
+  $('#tlInfo').textContent = `${doc.frames.length} frame${doc.frames.length > 1 ? 's' : ''} · ${(totalDuration() / 1000).toFixed(2)} s · ${Math.round(S.zoom * 100)}%`;
+}
+function updatePointerStatus(p) {
+  const x = Math.floor(p.x), y = Math.floor(p.y);
+  if (x < 0 || y < 0 || x >= doc.w || y >= doc.h) { $('#stPos').textContent = '—'; $('#stColor').innerHTML = ''; return; }
+  $('#stPos').textContent = `${x}, ${y}`;
+  if (playing) return;
+  const d = curFrame().ctx.getImageData(x, y, 1, 1).data, hex = rgbToHex(d[0], d[1], d[2]);
+  $('#stColor').innerHTML = d[3] ? `<span class="cswatch" style="background:${hex}"></span>${hex}${d[3] < 255 ? ` · α ${d[3]}` : ''}` : 'transparent';
+}
+
+// ---------- Colors ----------
+function setColor(which, hex, addRecent = true) {
+  S[which] = hex; $('#' + which).value = hex; $('#' + which + 'Hex').textContent = hex;
+  if (addRecent) pushRecent(hex);
+}
+function pushRecent(hex) {
+  recent = [hex, ...recent.filter(c => c !== hex)].slice(0, 8);
+  renderSwatches($('#recent'), recent);
+}
+function renderSwatches(el, list) {
+  el.innerHTML = '';
+  for (const c of list) { const b = document.createElement('button'); b.className = 'sw'; b.style.background = c; b.title = `${c} — left: primary, right: secondary`; b.dataset.c = c; el.append(b); }
+}
+for (const el of [$('#palette'), $('#recent')]) {
+  el.addEventListener('click', e => { const c = e.target.dataset.c; if (c) setColor('primary', c); });
+  el.addEventListener('contextmenu', e => { const c = e.target.dataset.c; if (c) { e.preventDefault(); setColor('secondary', c); } });
+}
+
+// ---------- Generic form dialog ----------
+function formDialog({ title, fields, ok = 'OK', onInput }) {
+  return new Promise(resolve => {
+    const dlg = $('#formDlg'), body = $('#formBody'), els = {};
+    $('#formTitle').textContent = title; body.innerHTML = '';
+    for (const f of fields) {
+      if (f.type === 'note') { const p = document.createElement('p'); p.className = 'note'; p.innerHTML = f.html; body.append(p); continue; }
+      const row = document.createElement(f.type === 'anchor' ? 'div' : 'label'); row.className = 'field';
+      const span = document.createElement('span'); span.textContent = f.label; row.append(span);
+      let el, holder;
+      if (f.type === 'select') {
+        el = document.createElement('select');
+        for (const o of f.options) { const [v, l] = Array.isArray(o) ? o : [o, o]; el.append(new Option(l, v)); }
+        if (f.value != null) el.value = f.value;
+      } else if (f.type === 'textarea') {
+        el = document.createElement('textarea'); el.rows = 3; el.value = f.value ?? '';
+      } else if (f.type === 'anchor') {
+        el = document.createElement('input'); el.type = 'hidden'; el.value = f.value || '0.5,0.5';
+        holder = document.createElement('div'); holder.className = 'anchor';
+        for (const ay of [0, 0.5, 1]) for (const ax of [0, 0.5, 1]) {
+          const b = document.createElement('button'); b.type = 'button'; b.dataset.v = `${ax},${ay}`;
+          b.classList.toggle('on', b.dataset.v === el.value);
+          b.onclick = () => { el.value = b.dataset.v; $$('button', holder).forEach(x => x.classList.toggle('on', x === b)); };
+          holder.append(b);
+        }
+        holder.append(el);
+      } else if (f.type === 'range') {
+        el = document.createElement('input'); el.type = 'range';
+        holder = document.createElement('div'); holder.className = 'rng';
+        const out = document.createElement('output');
+        Object.assign(el, { min: f.min ?? 0, max: f.max ?? 100, step: f.step ?? 1, value: f.value ?? 0 });
+        out.textContent = el.value + (f.unit || '');
+        el.addEventListener('input', () => out.textContent = el.value + (f.unit || ''));
+        holder.append(el, out);
+      } else {
+        el = document.createElement('input'); el.type = f.type || 'text';
+        if (f.type === 'checkbox') el.checked = !!f.value; else el.value = f.value ?? '';
+        for (const k of ['min', 'max', 'step']) if (f[k] != null) el[k] = f[k];
+      }
+      el.name = f.name; els[f.name] = el;
+      row.append(holder || el); body.append(row);
+    }
+    const read = () => {
+      const v = {};
+      for (const [k, el] of Object.entries(els)) v[k] = el.type === 'checkbox' ? el.checked : (el.type === 'number' || el.type === 'range') ? Number(el.value) : el.value;
+      return v;
+    };
+    body.oninput = e => onInput?.(read(), els, e.target.name);
+    body.onchange = e => { if (e.target.type === 'checkbox' || e.target.tagName === 'SELECT') onInput?.(read(), els, e.target.name); };
+    $$('.anchor button', body).forEach(b => b.addEventListener('click', () => onInput?.(read(), els, 'anchor')));
+    let done = false;
+    const finish = val => { if (done) return; done = true; dlg.close(); resolve(val); };
+    $('#formOk').textContent = ok;
+    $('#formForm').onsubmit = e => { e.preventDefault(); finish(read()); };
+    $('#formCancel').onclick = () => finish(null);
+    dlg.oncancel = e => { e.preventDefault(); finish(null); };
+    dlg.showModal();
+    onInput?.(read(), els, null);
+    const first = body.querySelector('input:not([type=hidden]),textarea,select'); first?.focus(); if (first?.select) first.select();
+  });
+}
+
+// ---------- Busy / toast / download ----------
+function showBusy(text) { $('#busyText').textContent = text; $('#busyBar').style.width = '0'; $('#busy').classList.add('show'); }
+function setBusy(p) { $('#busyBar').style.width = Math.round(p * 100) + '%'; }
+function hideBusy() { $('#busy').classList.remove('show'); }
+function toast(msg, type = '') {
+  const t = document.createElement('div'); t.className = 'toast ' + type; t.textContent = msg;
+  $('#toasts').append(t); setTimeout(() => t.remove(), type === 'error' ? 5000 : 2600);
+}
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+const nextTick = () => new Promise(r => setTimeout(r, 20));
+
+// ---------- File I/O ----------
+function loadImageCanvas(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => { const c = newCanvas(img.naturalWidth, img.naturalHeight); c.getContext('2d').drawImage(img, 0, 0); URL.revokeObjectURL(url); res(c); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error(`"${file.name}" is not a supported image`)); };
+    img.src = url;
+  });
+}
+function gifToSources(g) {
+  return g.frames.map(fr => {
+    const c = newCanvas(g.w, g.h);
+    c.getContext('2d').putImageData(new ImageData(fr.data, g.w, g.h), 0, 0);
+    return { canvas: c, delay: fr.delay < 20 ? 100 : fr.delay };
+  });
+}
+async function fileToSources(file) {
+  if (isGifFile(file)) {
+    const g = GIFCodec.decode(await file.arrayBuffer());
+    return { sources: gifToSources(g), loop: g.loop };
+  }
+  return { sources: [{ canvas: await loadImageCanvas(file), delay: 100 }] };
+}
+async function openFile(file) {
+  if (!confirmDiscard()) return;
+  showBusy(`Loading ${file.name}…`); await nextTick();
+  try {
+    const { sources, loop } = await fileToSources(file);
+    const w = sources[0].canvas.width, h = sources[0].canvas.height;
+    setDoc(w, h, sources.map(s => fitFrame(s, w, h)), baseName(file.name));
+    S.playCount = loop ?? 0;
+    toast(`Opened ${file.name} — ${sources.length} frame${sources.length > 1 ? 's' : ''}, ${w}×${h}`, 'ok');
+  } catch (err) { console.error(err); toast('Could not open file: ' + err.message, 'error'); }
+  finally { hideBusy(); }
+}
+async function insertFiles(files) {
+  if (!files.length) return;
+  showBusy('Importing…'); await nextTick();
+  const all = [];
+  try { for (const file of files) all.push(...(await fileToSources(file)).sources); }
+  catch (err) { console.error(err); toast(err.message, 'error'); }
+  finally { hideBusy(); }
+  if (!all.length) return;
+  if (!hasDoc()) {
+    const w = all[0].canvas.width, h = all[0].canvas.height;
+    setDoc(w, h, all.map(s => fitFrame(s, w, h)), baseName(files[0].name)); return;
+  }
+  pushUndo(snapStruct());
+  const nf = all.map(s => fitFrame(s, doc.w, doc.h));
+  doc.frames.splice(cur + 1, 0, ...nf);
+  cur += 1; selFrames = new Set(nf);
+  structureChanged();
+  toast(`Inserted ${nf.length} frame${nf.length > 1 ? 's' : ''}`, 'ok');
+}
+async function handleDroppedFiles(files) {
+  files = files.filter(f => f.type.startsWith('image/') || isGifFile(f));
+  if (!files.length) { toast('Drop GIF, PNG, JPG or WebP files', 'error'); return; }
+  if (!hasDoc()) { files.length === 1 ? openFile(files[0]) : insertFiles(files); return; }
+  const opts = [['insert', 'Insert as new frames after the current frame']];
+  if (files.length === 1) opts.push(['open', 'Open as a new animation (replaces current)']);
+  const v = await formDialog({ title: `Import ${files.length} file${files.length > 1 ? 's' : ''}`, fields: [{ name: 'mode', label: 'What to do', type: 'select', options: opts }], ok: 'Import' });
+  if (!v) return;
+  v.mode === 'open' ? openFile(files[0]) : insertFiles(files);
+}
+
+async function exportGif() {
+  if (!needDoc()) return;
+  stop();
+  const v = await formDialog({
+    title: 'Export GIF', ok: 'Export',
+    fields: [
+      { type: 'note', html: `${doc.frames.length} frames · ${doc.w}×${doc.h} px · ${(totalDuration() / 1000).toFixed(2)} s` },
+      { name: 'name', label: 'File name', type: 'text', value: fileName },
+      { name: 'playCount', label: 'Play count (0 = loop forever)', type: 'number', value: S.playCount, min: 0, max: 65535 },
+      { name: 'colors', label: 'Max colors', type: 'range', min: 2, max: 256, value: 256 },
+      { name: 'dither', label: 'Dithering (smoother gradients)', type: 'checkbox', value: false },
+      { name: 'paletteMode', label: 'Palette', type: 'select', options: [['local', 'Per-frame palette (best quality)'], ['global', 'One shared palette (often smaller)']] },
+      { name: 'optimize', label: 'Optimize (store only changed pixels)', type: 'checkbox', value: true },
+      { name: 'alphaThreshold', label: 'Transparency threshold', type: 'range', min: 1, max: 255, value: 128 },
+      { type: 'note', html: 'Pixels with alpha below the threshold become transparent. Frames whose pixels are mostly unchanged compress much better with optimization on.' },
+    ],
+  });
+  if (!v) return;
+  S.playCount = Math.max(0, Math.round(v.playCount) || 0);
+  fileName = (v.name || 'animation').trim().replace(/\.gif$/i, '') || 'animation';
+  showBusy('Encoding GIF…'); await nextTick();
+  try {
+    const t0 = performance.now();
+    const frames = doc.frames.map(f => ({ data: f.ctx.getImageData(0, 0, doc.w, doc.h).data, delay: f.delay }));
+    const bytes = await GIFCodec.encode(frames, doc.w, doc.h, { ...v, playCount: S.playCount }, setBusy);
+    const blob = new Blob([bytes], { type: 'image/gif' });
+    hideBusy();
+    showResult(blob, performance.now() - t0);
+  } catch (err) { hideBusy(); console.error(err); toast('Export failed: ' + err.message, 'error'); }
+}
+let resultBlob = null, resultUrl = null;
+function showResult(blob, ms) {
+  resultBlob = blob; if (resultUrl) URL.revokeObjectURL(resultUrl);
+  resultUrl = URL.createObjectURL(blob);
+  $('#resultImg').src = resultUrl;
+  $('#resultInfo').textContent = `${fileName}.gif — ${fmtBytes(blob.size)} · ${doc.frames.length} frames · ${doc.w}×${doc.h} · encoded in ${(ms / 1000).toFixed(2)} s`;
+  $('#resultDlg').showModal();
+}
+$('#resultDownload').onclick = () => { download(resultBlob, fileName + '.gif'); dirty = false; updateTitle(); $('#resultDlg').close(); };
+$('#resultClose').onclick = () => $('#resultDlg').close();
+
+function exportPng() {
+  if (!needDoc()) return;
+  curFrame().canvas.toBlob(b => download(b, `${fileName}-frame${cur + 1}.png`), 'image/png');
+}
+async function exportSheet() {
+  if (!needDoc()) return;
+  const n = doc.frames.length;
+  const v = await formDialog({ title: 'Export sprite sheet', ok: 'Export PNG', fields: [
+    { name: 'cols', label: 'Columns', type: 'number', value: Math.ceil(Math.sqrt(n)), min: 1, max: n },
+    { name: 'pad', label: 'Spacing (px)', type: 'number', value: 0, min: 0, max: 64 },
+  ] });
+  if (!v) return;
+  const cols = clamp(Math.round(v.cols) || 1, 1, n), rows = Math.ceil(n / cols), pad = clamp(Math.round(v.pad) || 0, 0, 64);
+  const c = newCanvas(cols * doc.w + (cols - 1) * pad, rows * doc.h + (rows - 1) * pad), x = c.getContext('2d');
+  doc.frames.forEach((f, i) => x.drawImage(f.canvas, (i % cols) * (doc.w + pad), Math.floor(i / cols) * (doc.h + pad)));
+  c.toBlob(b => download(b, `${fileName}-sheet.png`), 'image/png');
+}
+async function importSheet(file) {
+  let img;
+  try { img = await loadImageCanvas(file); } catch (err) { toast(err.message, 'error'); return; }
+  const v = await formDialog({ title: 'Import sprite sheet', ok: 'Import', fields: [
+    { type: 'note', html: `Image is ${img.width} × ${img.height} px. Frames are read left-to-right, top-to-bottom.` },
+    { name: 'cols', label: 'Columns', type: 'number', value: 4, min: 1, max: 512 },
+    { name: 'rows', label: 'Rows', type: 'number', value: 1, min: 1, max: 512 },
+    { name: 'count', label: 'Frame count (0 = all)', type: 'number', value: 0, min: 0 },
+    { name: 'delay', label: 'Delay (ms)', type: 'number', value: 100, min: 20, step: 10 },
+  ] });
+  if (!v || !confirmDiscard()) return;
+  const cols = Math.max(1, Math.round(v.cols)), rows = Math.max(1, Math.round(v.rows));
+  const fw = Math.floor(img.width / cols), fh = Math.floor(img.height / rows);
+  if (fw < 1 || fh < 1) { toast('Too many rows/columns for this image', 'error'); return; }
+  const total = v.count > 0 ? Math.min(v.count, cols * rows) : cols * rows, frames = [];
+  for (let i = 0; i < total; i++) {
+    const f = makeFrame(fw, fh, Math.max(20, v.delay));
+    f.ctx.drawImage(img, (i % cols) * fw, Math.floor(i / cols) * fh, fw, fh, 0, 0, fw, fh);
+    frames.push(f);
+  }
+  setDoc(fw, fh, frames, baseName(file.name));
+  toast(`Imported ${frames.length} frames of ${fw}×${fh}`, 'ok');
+}
+
+// ---------- New / demo ----------
+async function newDoc() {
+  if (!confirmDiscard()) return;
+  const v = await formDialog({ title: 'New animation', ok: 'Create', fields: [
+    { name: 'w', label: 'Width (px)', type: 'number', value: doc.w || 240, min: 1, max: 4096 },
+    { name: 'h', label: 'Height (px)', type: 'number', value: doc.h || 240, min: 1, max: 4096 },
+    { name: 'n', label: 'Frames', type: 'number', value: 8, min: 1, max: 1000 },
+    { name: 'delay', label: 'Delay per frame (ms)', type: 'number', value: 100, min: 20, step: 10 },
+    { name: 'bg', label: 'Background', type: 'select', value: 'white', options: [['transparent', 'Transparent'], ['white', 'White'], ['black', 'Black'], ['secondary', 'Secondary color']] },
+  ] });
+  if (!v) return;
+  const w = clamp(Math.round(v.w) || 1, 1, 4096), h = clamp(Math.round(v.h) || 1, 1, 4096), n = clamp(Math.round(v.n) || 1, 1, 1000);
+  const fill = { white: '#ffffff', black: '#000000', secondary: S.secondary }[v.bg];
+  const frames = [];
+  for (let i = 0; i < n; i++) {
+    const f = makeFrame(w, h, Math.max(20, Math.round(v.delay) || 100));
+    if (fill) { f.ctx.fillStyle = fill; f.ctx.fillRect(0, 0, w, h); }
+    frames.push(f);
+  }
+  setDoc(w, h, frames, 'animation');
+}
+function loadDemo() {
+  if (!confirmDiscard()) return;
+  const W = 160, H = 120, N = 16, frames = [];
+  for (let i = 0; i < N; i++) {
+    const f = makeFrame(W, H, 60), c = f.ctx, t = i / N;
+    const sky = c.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#1d2b53'); sky.addColorStop(1, '#7e2553');
+    c.fillStyle = sky; c.fillRect(0, 0, W, H);
+    c.fillStyle = '#ffccaa';
+    for (let s = 0; s < 14; s++) { const sx = (s * 37 + 11) % W, sy = (s * 23 + 7) % 60; if ((s + i) % 5) c.fillRect(sx, sy, 1, 1); }
+    c.fillStyle = '#008751'; c.fillRect(0, H - 18, W, 18);
+    c.fillStyle = '#00e436'; c.fillRect(0, H - 18, W, 3);
+    const bounce = Math.abs(Math.sin(t * Math.PI * 2)), y = H - 18 - 12 - bounce * 62, x = W / 2;
+    const squash = bounce < 0.15 ? 1.35 - bounce * 2 : 1;
+    c.fillStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(x, H - 16, 14 - bounce * 6, 3, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = `hsl(${Math.round(t * 360)},90%,60%)`;
+    c.beginPath(); c.ellipse(x, y + (squash > 1 ? 12 * (squash - 1) : 0), 12 * squash, 12 / squash, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.7)'; c.beginPath(); c.arc(x - 4, y - 4, 3, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fff1e8'; c.font = 'bold 12px system-ui, sans-serif'; c.textAlign = 'center'; c.fillText('GIF Studio', W / 2, 16);
+    frames.push(f);
+  }
+  setDoc(W, H, frames, 'demo');
+  toast('Demo loaded — press Space to play', 'ok');
+}
+
+// ---------- Image transforms (all frames) ----------
+function transformAll(nw, nh, draw) {
+  pushUndo(snapDoc());
+  for (const f of doc.frames) {
+    const tmp = copyCanvas(f.canvas);
+    f.canvas.width = nw; f.canvas.height = nh;
+    draw(f.ctx, tmp);
+  }
+  doc.w = nw; doc.h = nh; selection = null;
+  refreshAll(); fitZoom();
+}
+async function resizeDlg() {
+  if (!needDoc()) return;
+  const r = doc.w / doc.h;
+  const v = await formDialog({ title: 'Resize (scale image)', ok: 'Resize', fields: [
+    { name: 'w', label: 'Width (px)', type: 'number', value: doc.w, min: 1, max: 4096 },
+    { name: 'h', label: 'Height (px)', type: 'number', value: doc.h, min: 1, max: 4096 },
+    { name: 'pct', label: 'Scale (%)', type: 'number', value: 100, min: 1, max: 2000 },
+    { name: 'keep', label: 'Keep aspect ratio', type: 'checkbox', value: true },
+    { name: 'method', label: 'Resampling', type: 'select', options: [['smooth', 'Smooth (photos)'], ['pixel', 'Nearest neighbour (pixel art)']] },
+  ], onInput: (v, els, name) => {
+    if (name === 'pct') { els.w.value = Math.max(1, Math.round(doc.w * v.pct / 100)); els.h.value = Math.max(1, Math.round(doc.h * v.pct / 100)); }
+    else if (v.keep && name === 'w') { els.h.value = Math.max(1, Math.round(v.w / r)); els.pct.value = Math.round(v.w / doc.w * 100); }
+    else if (v.keep && name === 'h') { els.w.value = Math.max(1, Math.round(v.h * r)); els.pct.value = Math.round(v.h / doc.h * 100); }
+  } });
+  if (!v) return;
+  const nw = clamp(Math.round(v.w) || 1, 1, 4096), nh = clamp(Math.round(v.h) || 1, 1, 4096);
+  if (nw === doc.w && nh === doc.h) return;
+  transformAll(nw, nh, (ctx, tmp) => {
+    ctx.imageSmoothingEnabled = v.method === 'smooth'; ctx.imageSmoothingQuality = 'high';
+    let src = tmp;
+    // Halve in steps when shrinking a lot so smooth downscaling stays clean
+    if (v.method === 'smooth') while (src.width / 2 > nw && src.height / 2 > nh) {
+      const half = newCanvas(Math.round(src.width / 2), Math.round(src.height / 2)), hx = half.getContext('2d');
+      hx.imageSmoothingQuality = 'high'; hx.drawImage(src, 0, 0, half.width, half.height); src = half;
+    }
+    ctx.drawImage(src, 0, 0, nw, nh);
+  });
+  toast(`Resized to ${nw}×${nh}`, 'ok');
+}
+async function canvasSizeDlg() {
+  if (!needDoc()) return;
+  const v = await formDialog({ title: 'Canvas size (crop / extend)', ok: 'Apply', fields: [
+    { name: 'w', label: 'Width (px)', type: 'number', value: doc.w, min: 1, max: 4096 },
+    { name: 'h', label: 'Height (px)', type: 'number', value: doc.h, min: 1, max: 4096 },
+    { name: 'anchor', label: 'Anchor', type: 'anchor', value: '0.5,0.5' },
+    { name: 'fill', label: 'New area', type: 'select', options: [['transparent', 'Transparent'], ['primary', 'Primary color'], ['secondary', 'Secondary color']] },
+  ] });
+  if (!v) return;
+  const nw = clamp(Math.round(v.w) || 1, 1, 4096), nh = clamp(Math.round(v.h) || 1, 1, 4096);
+  const [ax, ay] = v.anchor.split(',').map(Number), ox = Math.round((nw - doc.w) * ax), oy = Math.round((nh - doc.h) * ay);
+  const fill = v.fill === 'transparent' ? null : S[v.fill];
+  transformAll(nw, nh, (ctx, tmp) => { if (fill) { ctx.fillStyle = fill; ctx.fillRect(0, 0, nw, nh); } ctx.drawImage(tmp, ox, oy); });
+}
+function cropToSelection() {
+  if (!needDoc()) return;
+  if (!selection) { toast('Make a selection with the Select tool (M) first'); return; }
+  const s = selection;
+  transformAll(s.w, s.h, (ctx, tmp) => ctx.drawImage(tmp, -s.x, -s.y));
+  toast(`Cropped to ${s.w}×${s.h}`, 'ok');
+}
+function trimEdges() {
+  if (!needDoc()) return;
+  const W = doc.w, H = doc.h; let minX = W, minY = H, maxX = -1, maxY = -1;
+  for (const f of doc.frames) {
+    const d = f.ctx.getImageData(0, 0, W, H).data;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3]) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }
+  }
+  if (maxX < 0) { toast('All frames are empty'); return; }
+  if (minX === 0 && minY === 0 && maxX === W - 1 && maxY === H - 1) { toast('No transparent edges to trim'); return; }
+  const nw = maxX - minX + 1, nh = maxY - minY + 1;
+  transformAll(nw, nh, (ctx, tmp) => ctx.drawImage(tmp, -minX, -minY));
+  toast(`Trimmed to ${nw}×${nh}`, 'ok');
+}
+function rotateAll(deg) {
+  if (!needDoc()) return;
+  const W = doc.w, H = doc.h, swap = deg % 180 !== 0, nw = swap ? H : W, nh = swap ? W : H;
+  transformAll(nw, nh, (ctx, tmp) => { ctx.translate(nw / 2, nh / 2); ctx.rotate(deg * Math.PI / 180); ctx.drawImage(tmp, -W / 2, -H / 2); ctx.setTransform(1, 0, 0, 1, 0, 0); });
+}
+function flipFrames(list, horizontal) {
+  if (!needDoc()) return;
+  pushUndo(snapFrames(list));
+  for (const f of list) {
+    const tmp = copyCanvas(f.canvas);
+    f.ctx.clearRect(0, 0, doc.w, doc.h);
+    f.ctx.setTransform(horizontal ? -1 : 1, 0, 0, horizontal ? 1 : -1, horizontal ? doc.w : 0, horizontal ? 0 : doc.h);
+    f.ctx.drawImage(tmp, 0, 0); f.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    updateThumb(f);
+  }
+  render();
+}
+
+// ---------- Frame operations ----------
+function addFrame() {
+  if (!needDoc()) return; stop();
+  pushUndo(snapStruct());
+  const f = makeFrame(doc.w, doc.h, curFrame().delay);
+  doc.frames.splice(cur + 1, 0, f); cur++; selFrames = new Set([f]);
+  structureChanged();
+}
+function duplicateFrames() {
+  if (!needDoc()) return; stop();
+  const list = selectedFrames(), last = Math.max(...list.map(f => doc.frames.indexOf(f)));
+  pushUndo(snapStruct());
+  const copies = list.map(cloneFrame);
+  doc.frames.splice(last + 1, 0, ...copies); cur = last + 1; selFrames = new Set(copies);
+  structureChanged();
+}
+function deleteFrames(list = selectedFrames()) {
+  if (!needDoc()) return; stop();
+  if (list.length >= doc.frames.length) { toast('An animation needs at least one frame', 'error'); return; }
+  pushUndo(snapStruct());
+  const set = new Set(list), firstIdx = doc.frames.findIndex(f => set.has(f));
+  doc.frames = doc.frames.filter(f => !set.has(f));
+  cur = clamp(firstIdx, 0, doc.frames.length - 1); selFrames = new Set([curFrame()]);
+  structureChanged();
+}
+function moveFrameTo(from, to) {
+  if (to === from || to === from + 1) return;
+  pushUndo(snapStruct());
+  const [f] = doc.frames.splice(from, 1);
+  if (to > from) to--;
+  doc.frames.splice(to, 0, f); cur = to; selFrames = new Set([f]);
+  structureChanged();
+}
+function moveFrame(dir) {
+  if (!needDoc()) return; stop();
+  const j = cur + dir; if (j < 0 || j >= doc.frames.length) return;
+  moveFrameTo(cur, dir > 0 ? j + 1 : j);
+}
+function reverseFrames() {
+  if (!needDoc()) return; stop();
+  let list = selectedFrames(); if (list.length < 2) list = doc.frames.slice();
+  const idxs = list.map(f => doc.frames.indexOf(f)).sort((a, b) => a - b), rev = idxs.map(i => doc.frames[i]).reverse();
+  const curF = curFrame();
+  pushUndo(snapStruct());
+  idxs.forEach((ix, k) => doc.frames[ix] = rev[k]);
+  cur = doc.frames.indexOf(curF);
+  structureChanged(); toast(list.length === doc.frames.length ? 'Reversed all frames' : `Reversed ${list.length} frames`);
+}
+function pingPong() {
+  if (!needDoc()) return; stop();
+  if (doc.frames.length < 3) { toast('Need at least 3 frames for a ping-pong loop'); return; }
+  pushUndo(snapStruct());
+  doc.frames.push(...doc.frames.slice(1, -1).reverse().map(cloneFrame));
+  structureChanged(); toast(`Now ${doc.frames.length} frames`);
+}
+function dropOdd() {
+  if (!needDoc()) return; stop();
+  if (doc.frames.length < 3) { toast('Not enough frames'); return; }
+  pushUndo(snapStruct());
+  const keep = [];
+  doc.frames.forEach((f, i) => { if (i % 2 === 0) keep.push(f); else keep[keep.length - 1].delay += f.delay; });
+  doc.frames = keep; cur = clamp(Math.floor(cur / 2), 0, keep.length - 1); selFrames = new Set([curFrame()]);
+  structureChanged(); toast(`Removed half the frames (timing preserved) — ${keep.length} left`);
+}
+function setDelays(list, ms) {
+  ms = clamp(Math.round(ms) || 100, 20, 65000);
+  pushUndo(snapStruct());
+  list.forEach(f => f.delay = ms);
+  structureChanged();
+}
+async function delaysDlg() {
+  if (!needDoc()) return;
+  const v = await formDialog({ title: 'Set frame delay', ok: 'Apply', fields: [
+    { name: 'ms', label: 'Delay (ms)', type: 'number', value: curFrame().delay, min: 20, max: 65000, step: 10 },
+    { name: 'scope', label: 'Apply to', type: 'select', value: selFrames.size > 1 ? 'selected' : 'all', options: [['all', `All frames (${doc.frames.length})`], ['selected', `Selected frames (${selectedFrames().length})`]] },
+    { type: 'note', html: 'Tip: 100 ms = 10 fps, 50 ms = 20 fps, 33 ms ≈ 30 fps. Browsers show delays under 20 ms as 100 ms, so 20 ms is the minimum.' },
+  ] });
+  if (v) setDelays(v.scope === 'all' ? doc.frames : selectedFrames(), v.ms);
+}
+function scaleDelays(k) {
+  if (!needDoc()) return;
+  pushUndo(snapStruct());
+  doc.frames.forEach(f => f.delay = clamp(Math.round(f.delay * k / 10) * 10, 20, 65000));
+  structureChanged(); toast(`Total duration ${(totalDuration() / 1000).toFixed(2)} s`);
+}
+function clearFrames(list) {
+  if (!needDoc()) return;
+  pushUndo(snapFrames(list));
+  list.forEach(f => { f.ctx.clearRect(0, 0, doc.w, doc.h); updateThumb(f); }); render();
+}
+function copyFrames(cut) {
+  if (!needDoc()) return;
+  const list = selectedFrames();
+  frameClip = list.map(f => ({ canvas: copyCanvas(f.canvas), delay: f.delay }));
+  if (cut) deleteFrames(list);
+  toast(`${cut ? 'Cut' : 'Copied'} ${list.length} frame${list.length > 1 ? 's' : ''}`);
+}
+function pasteFrames() {
+  if (!needDoc()) return;
+  if (!frameClip) { toast('No frames copied yet'); return; }
+  pushUndo(snapStruct());
+  const nf = frameClip.map(it => fitFrame(it, doc.w, doc.h));
+  doc.frames.splice(cur + 1, 0, ...nf); cur++; selFrames = new Set(nf);
+  structureChanged(); toast(`Pasted ${nf.length} frame${nf.length > 1 ? 's' : ''}`);
+}
+
+// ---------- Selection ops ----------
+function selRectOrToast() { if (!selection) { toast('Nothing selected — use the Select tool (M) or Ctrl+A'); return null; } return selection; }
+function clearSelection() {
+  if (!needDoc()) return; const s = selRectOrToast(); if (!s) return;
+  const list = selectedFrames(); pushUndo(snapFrames(list));
+  list.forEach(f => { f.ctx.clearRect(s.x, s.y, s.w, s.h); updateThumb(f); }); render();
+}
+function fillSelection() {
+  if (!needDoc()) return; const s = selRectOrToast(); if (!s) return;
+  const list = selectedFrames(); pushUndo(snapFrames(list));
+  list.forEach(f => { f.ctx.save(); f.ctx.globalAlpha = S.opacity / 100; f.ctx.fillStyle = S.primary; f.ctx.fillRect(s.x, s.y, s.w, s.h); f.ctx.restore(); updateThumb(f); }); render();
+}
+
+// ---------- Text ----------
+let lastText = { text: 'Hello!', font: 'Impact', size: 32, bold: false, italic: false, align: 'left', outline: 2, scope: 'current' };
+function drawText(ctx, v, x, y) {
+  const fam = /\s/.test(v.font) ? `"${v.font}"` : v.font;
+  ctx.save();
+  ctx.globalAlpha = S.opacity / 100;
+  ctx.font = `${v.italic ? 'italic ' : ''}${v.bold ? 'bold ' : ''}${Math.max(1, v.size)}px ${fam}, sans-serif`;
+  ctx.textBaseline = 'top'; ctx.textAlign = v.align === 'left' ? 'left' : 'center';
+  ctx.lineJoin = 'round'; ctx.miterLimit = 2;
+  const tx = v.align === 'hcenter' ? doc.w / 2 : x, lh = v.size * 1.15;
+  v.text.split('\n').forEach((ln, i) => {
+    const ty = y + i * lh;
+    if (v.outline > 0) { ctx.strokeStyle = v.outlineColor; ctx.lineWidth = v.outline * 2; ctx.strokeText(ln, tx, ty); }
+    ctx.fillStyle = v.color; ctx.fillText(ln, tx, ty);
+  });
+  ctx.restore();
+}
+async function textDialog(x, y, color, alt) {
+  const v = await formDialog({
+    title: 'Add text', ok: 'Add text',
+    fields: [
+      { name: 'text', label: 'Text', type: 'textarea', value: lastText.text },
+      { name: 'font', label: 'Font', type: 'select', value: lastText.font, options: ['Impact', 'Arial', 'Arial Black', 'Verdana', 'Trebuchet MS', 'Georgia', 'Times New Roman', 'Courier New', 'Comic Sans MS', 'monospace'] },
+      { name: 'size', label: 'Size (px)', type: 'number', value: lastText.size, min: 4, max: 500 },
+      { name: 'bold', label: 'Bold', type: 'checkbox', value: lastText.bold },
+      { name: 'italic', label: 'Italic', type: 'checkbox', value: lastText.italic },
+      { name: 'align', label: 'Placement', type: 'select', value: lastText.align, options: [['left', 'Starts at the click'], ['center', 'Centered on the click'], ['hcenter', 'Centered horizontally on canvas']] },
+      { name: 'color', label: 'Text color', type: 'color', value: color },
+      { name: 'outline', label: 'Outline width', type: 'number', value: lastText.outline, min: 0, max: 40 },
+      { name: 'outlineColor', label: 'Outline color', type: 'color', value: alt },
+      { name: 'scope', label: 'Apply to', type: 'select', value: lastText.scope, options: [['current', 'Current frame'], ['selected', `Selected frames (${selectedFrames().length})`], ['all', `All frames (${doc.frames.length})`]] },
+    ],
+    onInput: v => { const c = copyCanvas(curFrame().canvas); drawText(c.getContext('2d'), v, x, y); preview = c; render(); },
+  });
+  preview = null; render();
+  if (!v || !v.text.trim()) return;
+  lastText = v;
+  const list = v.scope === 'all' ? doc.frames.slice() : v.scope === 'selected' ? selectedFrames() : [curFrame()];
+  pushUndo(snapFrames(list));
+  list.forEach(f => { drawText(f.ctx, v, x, y); updateThumb(f); });
+  render();
+}
+
+// ---------- Filters ----------
+const mulMat = (a, b) => { const r = []; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) r.push(a[i * 3] * b[j] + a[i * 3 + 1] * b[3 + j] + a[i * 3 + 2] * b[6 + j]); return r; };
+const hueMat = deg => {
+  const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  return [0.213 + c * 0.787 - s * 0.213, 0.715 - c * 0.715 - s * 0.715, 0.072 - c * 0.072 + s * 0.928,
+    0.213 - c * 0.213 + s * 0.143, 0.715 + c * 0.285 + s * 0.140, 0.072 - c * 0.072 - s * 0.283,
+    0.213 - c * 0.213 - s * 0.787, 0.715 - c * 0.715 + s * 0.715, 0.072 + c * 0.928 + s * 0.072];
+};
+const satMat = s => [0.213 + 0.787 * s, 0.715 - 0.715 * s, 0.072 - 0.072 * s, 0.213 - 0.213 * s, 0.715 + 0.285 * s, 0.072 - 0.072 * s, 0.213 - 0.213 * s, 0.715 - 0.715 * s, 0.072 + 0.928 * s];
+const applyMat = (img, m) => {
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    d[i] = m[0] * r + m[1] * g + m[2] * b; d[i + 1] = m[3] * r + m[4] * g + m[5] * b; d[i + 2] = m[6] * r + m[7] * g + m[8] * b;
+  }
+};
+function boxBlur(img, r) {
+  const { width: w, height: h, data } = img; if (r < 1) return;
+  const a = new Float32Array(data.length), t = new Float32Array(data.length);
+  for (let i = 0; i < data.length; i += 4) { const al = data[i + 3] / 255; a[i] = data[i] * al; a[i + 1] = data[i + 1] * al; a[i + 2] = data[i + 2] * al; a[i + 3] = data[i + 3]; }
+  const pass = (src, dst, horiz) => {
+    const len = horiz ? w : h, lines = horiz ? h : w, step = horiz ? 4 : w * 4, k = 1 / (2 * r + 1);
+    for (let l = 0; l < lines; l++) {
+      const base = horiz ? l * w * 4 : l * 4;
+      for (let c = 0; c < 4; c++) {
+        let sum = 0;
+        for (let i = -r; i <= r; i++) sum += src[base + clamp(i, 0, len - 1) * step + c];
+        for (let i = 0; i < len; i++) {
+          dst[base + i * step + c] = sum * k;
+          sum += src[base + Math.min(i + r + 1, len - 1) * step + c] - src[base + Math.max(i - r, 0) * step + c];
+        }
+      }
+    }
+  };
+  for (let n = 0; n < 3; n++) { pass(a, t, true); pass(t, a, false); }
+  for (let i = 0; i < data.length; i += 4) {
+    const al = a[i + 3]; data[i + 3] = al;
+    if (al > 0) { const k = 255 / al; data[i] = a[i] * k; data[i + 1] = a[i + 1] * k; data[i + 2] = a[i + 2] * k; }
+  }
+}
+const FX = {
+  adjust: ({ brightness = 0, contrast = 0, saturation = 0, hue = 0 }) => img => {
+    applyMat(img, mulMat(hueMat(hue), satMat(1 + saturation / 100)));
+    const B = brightness * 2.55, C = contrast * 2.55, F = (259 * (C + 255)) / (255 * (259 - C)), d = img.data;
+    for (let i = 0; i < d.length; i += 4) for (let c = 0; c < 3; c++) d[i + c] = F * (d[i + c] + B - 128) + 128;
+  },
+  grayscale: ({ amount = 100 }) => img => applyMat(img, satMat(1 - amount / 100)),
+  sepia: ({ amount = 100 }) => img => {
+    const k = amount / 100, s = [0.393, 0.769, 0.189, 0.349, 0.686, 0.168, 0.272, 0.534, 0.131];
+    applyMat(img, s.map((v, i) => v * k + ([0, 4, 8].includes(i) ? 1 : 0) * (1 - k)));
+  },
+  invert: () => img => { const d = img.data; for (let i = 0; i < d.length; i += 4) { d[i] = 255 - d[i]; d[i + 1] = 255 - d[i + 1]; d[i + 2] = 255 - d[i + 2]; } },
+  blur: ({ radius }) => img => boxBlur(img, Math.round(radius)),
+  sharpen: ({ amount }) => img => {
+    const { width: w, height: h, data: d } = img, src = new Uint8ClampedArray(d), a = amount / 100;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const up = (Math.max(y - 1, 0) * w + x) * 4, dn = (Math.min(y + 1, h - 1) * w + x) * 4, lf = (y * w + Math.max(x - 1, 0)) * 4, rt = (y * w + Math.min(x + 1, w - 1)) * 4;
+      for (let c = 0; c < 3; c++) d[i + c] = src[i + c] * (1 + 4 * a) - a * (src[up + c] + src[dn + c] + src[lf + c] + src[rt + c]);
+    }
+  },
+  pixelate: ({ block }) => img => {
+    const { width: w, height: h, data: d } = img, b = Math.max(1, Math.round(block));
+    for (let by = 0; by < h; by += b) for (let bx = 0; bx < w; bx += b) {
+      let r = 0, g = 0, bl = 0, a = 0, n = 0;
+      const ex = Math.min(bx + b, w), ey = Math.min(by + b, h);
+      for (let y = by; y < ey; y++) for (let x = bx; x < ex; x++) { const i = (y * w + x) * 4, al = d[i + 3]; r += d[i] * al; g += d[i + 1] * al; bl += d[i + 2] * al; a += al; n++; }
+      const R = a ? r / a : 0, G = a ? g / a : 0, B = a ? bl / a : 0, A = a / n;
+      for (let y = by; y < ey; y++) for (let x = bx; x < ex; x++) { const i = (y * w + x) * 4; d[i] = R; d[i + 1] = G; d[i + 2] = B; d[i + 3] = A; }
+    }
+  },
+  posterize: ({ levels }) => img => {
+    const step = 255 / (Math.max(2, levels) - 1), d = img.data;
+    for (let i = 0; i < d.length; i += 4) for (let c = 0; c < 3; c++) d[i + c] = Math.round(d[i + c] / step) * step;
+  },
+  noise: ({ amount, mono }) => img => {
+    const d = img.data, a = amount * 2.55;
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (Math.random() - 0.5) * a;
+      for (let c = 0; c < 3; c++) d[i + c] += mono ? n : (Math.random() - 0.5) * a;
+    }
+  },
+  replace: ({ from, to, tol }) => img => {
+    const [fr, fg, fb] = hexToRgb(from), [tr, tg, tb] = hexToRgb(to), t = tol * 2.55, d = img.data;
+    for (let i = 0; i < d.length; i += 4) if (d[i + 3] && Math.abs(d[i] - fr) <= t && Math.abs(d[i + 1] - fg) <= t && Math.abs(d[i + 2] - fb) <= t) { d[i] = tr; d[i + 1] = tg; d[i + 2] = tb; }
+  },
+  toAlpha: ({ color, tol }) => img => {
+    const [fr, fg, fb] = hexToRgb(color), t = tol * 2.55, d = img.data;
+    for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - fr) <= t && Math.abs(d[i + 1] - fg) <= t && Math.abs(d[i + 2] - fb) <= t) d[i + 3] = 0;
+  },
+  fade: ({ amount }) => img => { const d = img.data, k = amount / 100; for (let i = 3; i < d.length; i += 4) d[i] *= k; },
+};
+function previewWith(fn) {
+  const c = copyCanvas(curFrame().canvas), x = c.getContext('2d', { willReadFrequently: true });
+  const img = x.getImageData(0, 0, c.width, c.height); fn(img); x.putImageData(img, 0, 0);
+  preview = c; render();
+}
+async function filterDialog(title, fields, make) {
+  if (!needDoc()) return; stop();
+  const n = selectedFrames().length;
+  const v = await formDialog({
+    title, ok: 'Apply',
+    fields: [...fields, { name: 'scope', label: 'Apply to', type: 'select', value: n > 1 ? 'selected' : 'all', options: [['all', `All frames (${doc.frames.length})`], ['selected', `Selected frames (${n})`], ['current', 'Current frame only']] }],
+    onInput: vals => previewWith(make(vals)),
+  });
+  preview = null; render();
+  if (!v) return;
+  const list = v.scope === 'all' ? doc.frames.slice() : v.scope === 'selected' ? selectedFrames() : [curFrame()];
+  showBusy('Applying filter…'); await nextTick();
+  try {
+    pushUndo(snapFrames(list));
+    const fn = make(v);
+    for (const f of list) { const img = f.ctx.getImageData(0, 0, doc.w, doc.h); fn(img); f.ctx.putImageData(img, 0, 0); updateThumb(f); }
+  } finally { hideBusy(); }
+  render(); toast(`${title.replace('…', '')} applied to ${list.length} frame${list.length > 1 ? 's' : ''}`, 'ok');
+}
+
+// ---------- Commands ----------
+const pickFile = id => { const i = $(id); i.value = ''; i.click(); };
+const CMD = {
+  new: newDoc, open: () => pickFile('#fileOpen'), insertFiles: () => pickFile('#fileInsert'), importSheet: () => pickFile('#fileSheet'),
+  demo: loadDemo, save: exportGif, exportPng, exportSheet,
+  undo, redo,
+  copyFrames: () => copyFrames(false), cutFrames: () => copyFrames(true), pasteFrames,
+  selectAll: () => { if (needDoc()) { selection = { x: 0, y: 0, w: doc.w, h: doc.h }; updateSelBox(); updateStatus(); } },
+  deselect: () => { selection = null; updateSelBox(); updateStatus(); },
+  clearSel: clearSelection, fillSel: fillSelection,
+  selectAllFrames: () => { if (needDoc()) { stop(); selFrames = new Set(doc.frames); frameChanged(); } },
+  resize: resizeDlg, canvasSize: canvasSizeDlg, crop: cropToSelection, trim: trimEdges,
+  rot90: () => rotateAll(90), rot270: () => rotateAll(270), rot180: () => rotateAll(180),
+  flipH: () => hasDoc() && flipFrames(doc.frames, true), flipV: () => hasDoc() && flipFrames(doc.frames, false),
+  addFrame, dupFrame: duplicateFrames, delFrame: () => deleteFrames(), moveLeft: () => moveFrame(-1), moveRight: () => moveFrame(1),
+  reverse: reverseFrames, pingpong: pingPong, dropOdd, delays: delaysDlg, faster: () => scaleDelays(0.5), slower: () => scaleDelays(2),
+  flipFrameH: () => hasDoc() && flipFrames(selectedFrames(), true), flipFrameV: () => hasDoc() && flipFrames(selectedFrames(), false),
+  clearFrame: () => hasDoc() && clearFrames(selectedFrames()),
+  adjust: () => filterDialog('Brightness / Contrast / Hue…', [
+    { name: 'brightness', label: 'Brightness', type: 'range', min: -100, max: 100, value: 0 },
+    { name: 'contrast', label: 'Contrast', type: 'range', min: -100, max: 100, value: 0 },
+    { name: 'saturation', label: 'Saturation', type: 'range', min: -100, max: 100, value: 0 },
+    { name: 'hue', label: 'Hue shift', type: 'range', min: -180, max: 180, value: 0, unit: '°' }], FX.adjust),
+  grayscale: () => filterDialog('Grayscale…', [{ name: 'amount', label: 'Amount', type: 'range', min: 0, max: 100, value: 100, unit: '%' }], FX.grayscale),
+  sepia: () => filterDialog('Sepia…', [{ name: 'amount', label: 'Amount', type: 'range', min: 0, max: 100, value: 100, unit: '%' }], FX.sepia),
+  invert: () => filterDialog('Invert colors…', [], FX.invert),
+  blur: () => filterDialog('Blur…', [{ name: 'radius', label: 'Radius', type: 'range', min: 1, max: 20, value: 2, unit: 'px' }], FX.blur),
+  sharpen: () => filterDialog('Sharpen…', [{ name: 'amount', label: 'Amount', type: 'range', min: 5, max: 200, value: 50, unit: '%' }], FX.sharpen),
+  pixelate: () => filterDialog('Pixelate…', [{ name: 'block', label: 'Block size', type: 'range', min: 2, max: 64, value: 6, unit: 'px' }], FX.pixelate),
+  posterize: () => filterDialog('Posterize…', [{ name: 'levels', label: 'Levels per channel', type: 'range', min: 2, max: 16, value: 4 }], FX.posterize),
+  noise: () => filterDialog('Add noise…', [{ name: 'amount', label: 'Amount', type: 'range', min: 1, max: 100, value: 20, unit: '%' }, { name: 'mono', label: 'Monochrome', type: 'checkbox', value: true }], FX.noise),
+  replaceColor: () => filterDialog('Replace color…', [
+    { name: 'from', label: 'Find color', type: 'color', value: S.primary },
+    { name: 'to', label: 'Replace with', type: 'color', value: S.secondary },
+    { name: 'tol', label: 'Tolerance', type: 'range', min: 0, max: 100, value: 10, unit: '%' }], FX.replace),
+  colorToAlpha: () => filterDialog('Make color transparent…', [
+    { name: 'color', label: 'Color', type: 'color', value: S.primary },
+    { name: 'tol', label: 'Tolerance', type: 'range', min: 0, max: 100, value: 10, unit: '%' }], FX.toAlpha),
+  fade: () => filterDialog('Fade / opacity…', [{ name: 'amount', label: 'Opacity', type: 'range', min: 0, max: 100, value: 50, unit: '%' }], FX.fade),
+  zoomIn: () => zoomStep(1), zoomOut: () => zoomStep(-1), zoomFit: fitZoom, zoom100: () => setZoom(1),
+  toggleGrid: () => { S.grid = !S.grid; $('#gridToggle').checked = S.grid; applyZoom(); if (S.grid && S.zoom < 4) toast('Zoom to 400% or more to see the grid'); },
+  toggleOnion: () => { S.onion = !S.onion; $('#onion').checked = S.onion; render(); },
+  play: () => playing ? stop() : play(),
+  first: () => goFrame(0), prev: () => hasDoc() && goFrame((cur - 1 + doc.frames.length) % doc.frames.length),
+  next: () => hasDoc() && goFrame((cur + 1) % doc.frames.length), last: () => hasDoc() && goFrame(doc.frames.length - 1),
+  help: () => $('#helpDlg').showModal(),
+  about: () => formDialog({ title: 'About GIF Studio', ok: 'Close', fields: [{ type: 'note', html: 'GIF Studio is a single-file animated GIF editor. It decodes and encodes GIFs in plain JavaScript (LZW compression, median-cut color quantization, optional Floyd–Steinberg dithering, frame-difference optimization). No files leave your computer.' }] }),
+};
+function run(name) {
+  closeMenus();
+  const fn = CMD[name];
+  if (!fn) return;
+  try { const r = fn(); if (r?.catch) r.catch(err => { console.error(err); toast(err.message, 'error'); }); }
+  catch (err) { console.error(err); toast(err.message, 'error'); }
+}
+
+// ---------- Menus ----------
+function closeMenus() { $$('.menu.open').forEach(m => m.classList.remove('open')); }
+$$('.menu').forEach(m => {
+  m.firstElementChild.addEventListener('click', e => { e.stopPropagation(); const was = m.classList.contains('open'); closeMenus(); if (!was) m.classList.add('open'); });
+  m.addEventListener('mouseenter', () => { if ($('.menu.open') && !m.classList.contains('open')) { closeMenus(); m.classList.add('open'); } });
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-cmd]');
+  if (b) { run(b.dataset.cmd); return; }
+  if (!e.target.closest('.menu')) closeMenus();
+  if (!e.target.closest('#panel,#panelToggle')) $('#panel').classList.remove('show');
+});
+
+// ---------- Keyboard ----------
+document.addEventListener('keydown', e => {
+  if (document.querySelector('dialog[open]')) return;
+  if (e.target.matches('input:not([type=range]):not([type=checkbox]),textarea,select')) { if (e.key === 'Escape') e.target.blur(); return; }
+  if (e.target.matches('input[type=range]') && e.key.startsWith('Arrow')) return;
+  const k = e.key, lk = k.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  if (mod) {
+    const map = { z: e.shiftKey ? 'redo' : 'undo', y: 'redo', s: 'save', o: 'open', a: e.shiftKey ? 'selectAllFrames' : 'selectAll', d: 'deselect', c: 'copyFrames', x: 'cutFrames', '0': 'zoomFit', '1': 'zoom100', '=': 'zoomIn', '+': 'zoomIn', '-': 'zoomOut', "'": 'toggleGrid' };
+    if (map[lk]) { e.preventDefault(); run(map[lk]); }
+    return;
+  }
+  if (e.altKey) return;
+  if (k === 'Escape') { closeMenus(); if (stroke) { if (stroke.timer) clearInterval(stroke.timer); stroke = null; render(); } else CMD.deselect(); return; }
+  if (k === ' ') { e.preventDefault(); run('play'); return; }
+  if (k === 'ArrowLeft') { e.preventDefault(); run(e.shiftKey ? 'moveLeft' : 'prev'); return; }
+  if (k === 'ArrowRight') { e.preventDefault(); run(e.shiftKey ? 'moveRight' : 'next'); return; }
+  if (k === 'Home') { run('first'); return; }
+  if (k === 'End') { run('last'); return; }
+  if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); run(e.shiftKey ? 'delFrame' : 'clearSel'); return; }
+  if (k === '?') { run('help'); return; }
+  if (k === '[' || k === ']') { setSize(S.size + (k === ']' ? 1 : -1) * Math.max(1, Math.round(S.size * 0.15))); return; }
+  if (e.shiftKey && lk === 'd') { run('dupFrame'); return; }
+  if (lk === 'n') { run('addFrame'); return; }
+  if (lk === 'o') { run('toggleOnion'); return; }
+  if (lk === 'x') { const p = S.primary; setColor('primary', S.secondary, false); setColor('secondary', p, false); return; }
+  const t = TOOLS.find(t => t.key === lk);
+  if (t) setTool(t.id);
+});
+document.addEventListener('paste', e => {
+  if (e.target.matches('input,textarea') || document.querySelector('dialog[open]')) return;
+  const files = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith('image/'));
+  if (files.length) { e.preventDefault(); insertFiles(files); }
+  else if (frameClip) { e.preventDefault(); pasteFrames(); }
+});
+
+// ---------- Wiring ----------
+function setTool(id) { S.tool = id; stroke = null; updatePanel(); cursorEl.style.display = 'none'; }
+function setSize(v) { S.size = clamp(Math.round(v) || 1, 1, 500); $('#size').value = Math.min(100, S.size); $('#sizeNum').value = S.size; }
+
+(function init() {
+  $$('[data-icon]').forEach(el => el.insertAdjacentHTML('afterbegin', icon(el.dataset.icon)));
+  const tools = $('#tools');
+  for (const t of TOOLS) {
+    if (t.sep) { tools.append(document.createElement('hr')); continue; }
+    const b = document.createElement('button');
+    b.className = 'ibtn'; b.dataset.tool = t.id; b.title = `${t.name} (${t.key.toUpperCase()})`; b.innerHTML = icon(t.id);
+    b.onclick = () => setTool(t.id); tools.append(b);
+  }
+  renderSwatches($('#palette'), palette);
+  renderSwatches($('#recent'), recent);
+
+  view.addEventListener('pointerdown', onDown);
+  view.addEventListener('pointermove', onMove);
+  view.addEventListener('pointerup', onUp);
+  view.addEventListener('pointercancel', onUp);
+  view.addEventListener('pointerleave', () => { cursorEl.style.display = 'none'; $('#stPos').textContent = '—'; $('#stColor').innerHTML = ''; });
+  view.addEventListener('contextmenu', e => e.preventDefault());
+  stage.addEventListener('pointerdown', e => {
+    if (e.button === 1 && e.target !== view) { e.preventDefault(); panning = { x: e.clientX, y: e.clientY, sl: stage.scrollLeft, st: stage.scrollTop }; stage.setPointerCapture(e.pointerId); }
+  });
+  stage.addEventListener('pointermove', e => { if (panning && e.target !== view) onMove(e); });
+  stage.addEventListener('pointerup', () => { panning = null; });
+  stage.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
+  stage.addEventListener('wheel', e => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoomStep(e.deltaY < 0 ? 1 : -1, e.clientX, e.clientY); } }, { passive: false });
+
+  $('#primary').addEventListener('input', e => setColor('primary', e.target.value, false));
+  $('#primary').addEventListener('change', e => pushRecent(e.target.value));
+  $('#secondary').addEventListener('input', e => setColor('secondary', e.target.value, false));
+  $('#secondary').addEventListener('change', e => pushRecent(e.target.value));
+  $('#swapColors').onclick = () => { const p = S.primary; setColor('primary', S.secondary, false); setColor('secondary', p, false); };
+  $('#resetColors').onclick = () => { setColor('primary', '#000000', false); setColor('secondary', '#ffffff', false); };
+  $('#paletteReset').onclick = () => { palette = DEFAULT_PALETTE.slice(); renderSwatches($('#palette'), palette); };
+  $('#paletteFromFrame').onclick = () => {
+    if (!needDoc()) return;
+    const f = curFrame(), cols = GIFCodec.quantize(f.ctx.getImageData(0, 0, doc.w, doc.h).data, doc.w, doc.h, 24);
+    if (!cols.length) { toast('The frame has no visible pixels'); return; }
+    palette = cols.sort((a, b) => (a[0] * .3 + a[1] * .59 + a[2] * .11) - (b[0] * .3 + b[1] * .59 + b[2] * .11)).map(c => rgbToHex(...c));
+    renderSwatches($('#palette'), palette); toast(`Palette: ${palette.length} colors from frame ${cur + 1}`);
+  };
+
+  $('#size').addEventListener('input', e => setSize(e.target.value));
+  $('#sizeNum').addEventListener('change', e => setSize(e.target.value));
+  $('#opacity').addEventListener('input', e => { S.opacity = +e.target.value; $('#opacityVal').textContent = S.opacity + '%'; });
+  $('#shapeStyle').addEventListener('change', e => S.shapeStyle = e.target.value);
+  $('#antialias').addEventListener('change', e => S.antialias = e.target.checked);
+  $('#tolerance').addEventListener('input', e => { S.tolerance = +e.target.value; $('#tolVal').textContent = S.tolerance + '%'; });
+  $('#contiguous').addEventListener('change', e => S.contiguous = e.target.checked);
+  $('#moveAll').addEventListener('change', e => S.moveAll = e.target.checked);
+  $('#wrapMove').addEventListener('change', e => S.wrap = e.target.checked);
+  $('#delay').addEventListener('change', e => { if (hasDoc()) setDelays(selectedFrames(), +e.target.value); });
+  $('#delayAll').onclick = () => { if (needDoc()) { setDelays(doc.frames, +$('#delay').value); toast('Delay applied to all frames'); } };
+  $('#speed').addEventListener('change', e => S.speed = +e.target.value);
+  $('#onion').addEventListener('change', e => { S.onion = e.target.checked; render(); });
+  $('#onionNext').addEventListener('change', e => { S.onionNext = e.target.checked; render(); });
+  $('#onionOpacity').addEventListener('input', e => { S.onionOpacity = +e.target.value; $('#onionVal').textContent = S.onionOpacity + '%'; render(); });
+  $('#gridToggle').addEventListener('change', e => { S.grid = e.target.checked; applyZoom(); });
+  $('#bgSelect').addEventListener('change', e => { wrap.classList.remove('bg-checker', 'bg-white', 'bg-black', 'bg-gray'); wrap.classList.add('bg-' + e.target.value); });
+  $('#panelToggle').addEventListener('click', e => { e.stopPropagation(); $('#panel').classList.toggle('show'); });
+
+  $('#fileOpen').addEventListener('change', e => { const f = e.target.files[0]; if (f) openFile(f); });
+  $('#fileInsert').addEventListener('change', e => insertFiles([...e.target.files]));
+  $('#fileSheet').addEventListener('change', e => { const f = e.target.files[0]; if (f) importSheet(f); });
+
+  const hasFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
+  window.addEventListener('dragover', e => { if (hasFiles(e)) { e.preventDefault(); document.body.classList.add('dropping'); } });
+  window.addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('dropping'); });
+  window.addEventListener('drop', e => {
+    document.body.classList.remove('dropping');
+    if (!hasFiles(e)) return;
+    e.preventDefault(); handleDroppedFiles([...e.dataTransfer.files]);
+  });
+  window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+  setSize(S.size); setPlayIcon(); updatePanel(); updateUndoUI(); updateTitle();
+})();
+</script>
+</body>
+</html>
