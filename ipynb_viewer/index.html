@@ -1,0 +1,1361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Notebook Viewer</title>
+<style>
+:root{
+  --bg:#f6f6f4; --surface:#ffffff; --surface-2:#f2f2ef; --surface-3:#e8e8e4;
+  --border:#e3e2dd; --border-strong:#cecdc7;
+  --text:#1f1f1c; --muted:#6a6964; --faint:#9c9b95;
+  --accent:#2d68d4; --accent-soft:rgba(45,104,212,.09); --accent-line:rgba(45,104,212,.45);
+  --code-bg:#f7f7f4; --err-bg:#fcf0ef; --err-line:#e4b4ae; --stderr-bg:#fdf8ec;
+  --p-in:#2d68d4; --p-out:#b84a12;
+  --tok-kw:#9b2fa0; --tok-str:#3b7f35; --tok-num:#a85a00; --tok-com:#8b8c91; --tok-fn:#2559bd;
+  --tok-bi:#9a5f05; --tok-deco:#0a7593; --tok-con:#a85a00; --tok-self:#b8410c; --tok-magic:#c4335f; --tok-cls:#9a5f05;
+  --ansi-0:#3e424d; --ansi-1:#c22f2f; --ansi-2:#2b8537; --ansi-3:#946600; --ansi-4:#2a62c9; --ansi-5:#a03aa0; --ansi-6:#0b7f9e; --ansi-7:#b5b1a4;
+  --ansi-8:#6b6f7a; --ansi-9:#dd4040; --ansi-10:#2f9e4b; --ansi-11:#b88a00; --ansi-12:#4b83e6; --ansi-13:#c058c0; --ansi-14:#1a9cb8; --ansi-15:#8f949e;
+  --img-bg:transparent;
+  --shadow:0 1px 2px rgba(20,20,10,.05),0 6px 24px rgba(20,20,10,.08);
+  --mono:"Cascadia Code","JetBrains Mono","SF Mono",Consolas,"Liberation Mono",Menlo,ui-monospace,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --serif:"Cambria Math","STIX Two Math","Latin Modern Math",Cambria,Georgia,serif;
+  --pw:76px; --hh:52px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#141518; --surface:#1b1d21; --surface-2:#22252a; --surface-3:#2b2e34;
+    --border:#2f3238; --border-strong:#41454d;
+    --text:#e5e5e1; --muted:#9d9c97; --faint:#6f6e6a;
+    --accent:#6ea6ff; --accent-soft:rgba(110,166,255,.12); --accent-line:rgba(110,166,255,.5);
+    --code-bg:#181a1e; --err-bg:#2a1b1b; --err-line:#6b3530; --stderr-bg:#26221a;
+    --p-in:#6ea6ff; --p-out:#ef8a52;
+    --tok-kw:#c792ea; --tok-str:#a5d38a; --tok-num:#f0a86e; --tok-com:#7c818c; --tok-fn:#79b4ff;
+    --tok-bi:#e9c27a; --tok-deco:#5fc4d4; --tok-con:#f0a86e; --tok-self:#f07f6a; --tok-magic:#f07890; --tok-cls:#e9c27a;
+    --ansi-0:#5c6370; --ansi-1:#ef6b6b; --ansi-2:#8fcf6f; --ansi-3:#e5c07b; --ansi-4:#69a7f5; --ansi-5:#d08ae6; --ansi-6:#56c2d6; --ansi-7:#d7dae0;
+    --ansi-8:#7f848e; --ansi-9:#ff8080; --ansi-10:#a8e08a; --ansi-11:#f2d48c; --ansi-12:#8cbcff; --ansi-13:#e4a6f2; --ansi-14:#7fd8e8; --ansi-15:#ffffff;
+    --img-bg:#ffffff;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 28px rgba(0,0,0,.35);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141518; --surface:#1b1d21; --surface-2:#22252a; --surface-3:#2b2e34;
+  --border:#2f3238; --border-strong:#41454d;
+  --text:#e5e5e1; --muted:#9d9c97; --faint:#6f6e6a;
+  --accent:#6ea6ff; --accent-soft:rgba(110,166,255,.12); --accent-line:rgba(110,166,255,.5);
+  --code-bg:#181a1e; --err-bg:#2a1b1b; --err-line:#6b3530; --stderr-bg:#26221a;
+  --p-in:#6ea6ff; --p-out:#ef8a52;
+  --tok-kw:#c792ea; --tok-str:#a5d38a; --tok-num:#f0a86e; --tok-com:#7c818c; --tok-fn:#79b4ff;
+  --tok-bi:#e9c27a; --tok-deco:#5fc4d4; --tok-con:#f0a86e; --tok-self:#f07f6a; --tok-magic:#f07890; --tok-cls:#e9c27a;
+  --ansi-0:#5c6370; --ansi-1:#ef6b6b; --ansi-2:#8fcf6f; --ansi-3:#e5c07b; --ansi-4:#69a7f5; --ansi-5:#d08ae6; --ansi-6:#56c2d6; --ansi-7:#d7dae0;
+  --ansi-8:#7f848e; --ansi-9:#ff8080; --ansi-10:#a8e08a; --ansi-11:#f2d48c; --ansi-12:#8cbcff; --ansi-13:#e4a6f2; --ansi-14:#7fd8e8; --ansi-15:#ffffff;
+  --img-bg:#ffffff;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 28px rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html{scroll-padding-top:calc(var(--hh) + 12px)}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit}
+pre,code,kbd,.prompt,.gutter,.toc-code{font-variant-ligatures:none;font-feature-settings:"liga" 0,"calt" 0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+/* ---------- top bar ---------- */
+.bar{position:sticky;top:0;z-index:30;height:var(--hh);display:flex;align-items:center;gap:8px;padding:0 12px;
+  background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px);
+  border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:8px;font-weight:650;font-size:14px;letter-spacing:-.01em;white-space:nowrap;padding-right:6px}
+.brand svg{color:var(--accent)}
+.icon-btn{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:8px;border:1px solid transparent;background:none;cursor:pointer;color:var(--muted);flex:none}
+.icon-btn:hover{background:var(--surface-2);color:var(--text)}
+.btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);cursor:pointer;font-size:13.5px;font-weight:550;white-space:nowrap;flex:none}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.07);background:var(--accent)}
+:root[data-theme="dark"] .btn.primary{color:#0d1626}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.primary{color:#0d1626}}
+.tabs{display:flex;gap:4px;min-width:0;flex:1;overflow-x:auto;scrollbar-width:none;padding:0 4px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{display:flex;align-items:center;gap:4px;max-width:240px;height:32px;padding:0 4px 0 12px;border-radius:8px;border:1px solid transparent;background:none;cursor:pointer;color:var(--muted);font-size:13px;flex:none}
+.tab:hover{background:var(--surface-2);color:var(--text)}
+.tab.active{background:var(--surface-2);border-color:var(--border);color:var(--text);font-weight:550}
+.tab .tname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tab .tclose{display:grid;place-items:center;width:22px;height:22px;border-radius:5px;color:var(--faint)}
+.tab .tclose:hover{background:var(--surface-3);color:var(--text)}
+
+/* View menu */
+.menu{position:relative;flex:none}
+.menu>summary{list-style:none}
+.menu>summary::-webkit-details-marker{display:none}
+.menu-panel{position:absolute;right:0;top:calc(100% + 6px);width:260px;padding:6px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);font-size:13.5px}
+.menu-panel label,.menu-panel .mi{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;border-radius:7px;cursor:pointer;width:100%;border:0;background:none;text-align:left}
+.menu-panel label:hover,.menu-panel .mi:hover{background:var(--surface-2)}
+.menu-panel kbd{font:11px var(--mono);color:var(--faint)}
+.menu-sep{height:1px;background:var(--border);margin:6px 4px}
+.menu-h{font-size:11px;font-weight:650;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);padding:6px 10px 2px}
+.switch{appearance:none;-webkit-appearance:none;width:30px;height:18px;border-radius:999px;background:var(--surface-3);position:relative;cursor:pointer;flex:none;transition:background .15s;margin:0}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+.switch:checked{background:var(--accent)}
+.switch:checked::after{transform:translateX(12px)}
+.seg{display:flex;gap:2px;padding:2px;margin:4px 6px 6px;background:var(--surface-2);border-radius:8px}
+.seg button{flex:1;height:28px;border:0;background:none;border-radius:6px;cursor:pointer;font-size:12.5px;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.08);font-weight:550}
+
+/* ---------- layout ---------- */
+.layout{display:flex;align-items:flex-start;min-height:calc(100vh - var(--hh))}
+#sidebar{position:sticky;top:var(--hh);height:calc(100vh - var(--hh));width:280px;flex:none;border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column}
+body.no-sidebar #sidebar,body.empty #sidebar{display:none}
+.side-head{padding:14px 14px 8px;display:flex;flex-direction:column;gap:8px}
+.side-title{font-size:11px;font-weight:650;text-transform:uppercase;letter-spacing:.07em;color:var(--faint)}
+.filter{width:100%;height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font:13px var(--sans)}
+.filter:focus{outline:none;border-color:var(--accent-line);box-shadow:0 0 0 3px var(--accent-soft)}
+#toc{overflow-y:auto;padding:2px 8px 24px;flex:1;scrollbar-width:thin}
+.toc-item{display:flex;gap:8px;align-items:baseline;padding:4px 8px;border-radius:6px;color:var(--muted);text-decoration:none;font-size:13px;line-height:1.4;border-left:2px solid transparent}
+.toc-item:hover{background:var(--surface-2);color:var(--text)}
+.toc-item.active{color:var(--text);background:var(--accent-soft);border-left-color:var(--accent)}
+.toc-h{color:var(--text);font-weight:550}
+.toc-code{font:12px/1.45 var(--mono)}
+.toc-n{color:var(--faint);flex:none;min-width:2.6em;text-align:right;font-size:11px}
+.toc-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.toc-empty{padding:8px 14px;color:var(--faint);font-size:13px}
+main{flex:1;min-width:0;padding:28px 28px 120px}
+
+/* ---------- welcome ---------- */
+#welcome{max-width:620px;margin:8vh auto 0;text-align:center}
+body:not(.empty) #welcome{display:none}
+.drop-card{border:1.5px dashed var(--border-strong);border-radius:18px;padding:52px 28px 40px;background:var(--surface);cursor:pointer;transition:border-color .15s,background .15s}
+.drop-card:hover{border-color:var(--accent-line);background:color-mix(in srgb,var(--surface) 92%,var(--accent))}
+.drop-icon{width:56px;height:56px;margin:0 auto 18px;border-radius:14px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+#welcome h1{font-size:24px;letter-spacing:-.02em;margin:0 0 6px;font-weight:680}
+#welcome p{margin:0;color:var(--muted)}
+.drop-card .btn{margin-top:22px}
+.fine{margin-top:22px!important;font-size:13px;color:var(--faint)!important}
+.features{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:18px}
+.features span{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--surface-2);color:var(--muted);border:1px solid var(--border)}
+
+/* ---------- notebook ---------- */
+.nb{max-width:1060px;margin:0 auto}
+.nb-head{padding:4px 0 22px 0;margin:0 0 18px var(--pw);border-bottom:1px solid var(--border)}
+.nb-title{font-size:26px;line-height:1.25;letter-spacing:-.02em;margin:0 0 10px;font-weight:700;word-break:break-word}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;padding:2px 9px;border-radius:999px;background:var(--surface);border:1px solid var(--border);color:var(--muted);white-space:nowrap}
+.chip b{color:var(--text);font-weight:600}
+.progress{font-size:12.5px;color:var(--accent);margin-top:10px;display:flex;align-items:center;gap:8px}
+.spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--accent-soft);border-top-color:var(--accent);animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.cell{position:relative;margin:0 0 14px;content-visibility:auto;contain-intrinsic-size:auto 120px;scroll-margin-top:calc(var(--hh) + 12px)}
+.cell.flash .code-box,.cell.flash .md{animation:flash 1.2s ease-out}
+@keyframes flash{0%{box-shadow:0 0 0 3px var(--accent-line)}100%{box-shadow:0 0 0 3px transparent}}
+.row{display:grid;grid-template-columns:var(--pw) minmax(0,1fr);position:relative}
+.prompt{font:12.5px/1 var(--mono);text-align:right;padding:12px 12px 0 0;white-space:nowrap;user-select:none;color:var(--faint)}
+.in-prompt{color:var(--p-in)}
+.out-prompt{color:var(--p-out);cursor:pointer}
+.out-prompt:empty{cursor:pointer}
+.collapser{position:absolute;left:calc(var(--pw) - 8px);top:2px;bottom:2px;width:4px;border-radius:3px;cursor:pointer;background:transparent;border:0;padding:0}
+.collapser::before{content:"";position:absolute;inset:0 -4px}
+.row:hover>.collapser,.outputs:hover>.collapser{background:var(--border-strong)}
+.collapser:hover{background:var(--accent)!important}
+
+.code-box{position:relative;background:var(--code-bg);border:1px solid var(--border);border-radius:10px;min-width:0}
+.cell-code:hover .code-box{border-color:var(--border-strong)}
+.form-title{font:600 13px/1.4 var(--sans);padding:9px 14px 0;color:var(--text)}
+.code{display:flex;min-width:0}
+.gutter{display:none;flex:none;padding:11px 0 11px 12px;text-align:right;font:13px/1.55 var(--mono);color:var(--faint);user-select:none;white-space:pre;border-right:1px solid var(--border);padding-right:10px;margin-right:0}
+body.ln .gutter{display:block}
+pre.src{margin:0;padding:11px 14px;overflow-x:auto;font:13px/1.55 var(--mono);tab-size:4;flex:1;min-width:0;scrollbar-width:thin}
+pre.src code{font:inherit;white-space:pre}
+.copy-btn{position:absolute;top:6px;right:6px;height:26px;padding:0 9px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:12px;cursor:pointer;opacity:0;transition:opacity .12s}
+.code-box:hover .copy-btn,.copy-btn:focus-visible{opacity:1}
+.copy-btn:hover{color:var(--text);border-color:var(--border-strong)}
+.n-badge{display:none}
+.hidden-bar{display:none;align-items:center;gap:8px;height:34px;padding:0 14px;border:1px dashed var(--border-strong);border-radius:10px;color:var(--faint);font-size:12.5px;cursor:pointer;background:none;width:100%;text-align:left}
+.hidden-bar:hover{color:var(--text);border-color:var(--accent-line)}
+.input.collapsed .code-box{display:none}
+.input.collapsed .hidden-bar{display:flex}
+
+/* tokens */
+.kw{color:var(--tok-kw)} .st{color:var(--tok-str)} .nu{color:var(--tok-num)} .co{color:var(--tok-com);font-style:italic}
+.fn{color:var(--tok-fn)} .fd{color:var(--tok-fn);font-weight:600} .bi{color:var(--tok-bi)} .de{color:var(--tok-deco)}
+.cn{color:var(--tok-con)} .se{color:var(--tok-self);font-style:italic} .mg{color:var(--tok-magic)} .cl{color:var(--tok-cls);font-weight:600} .pp{color:var(--tok-deco)}
+
+/* outputs */
+.outputs{position:relative;margin-top:2px}
+.outputs.collapsed>.out-row{display:none}
+.outputs.collapsed>.out-hidden{display:grid}
+.out-hidden{display:none}
+.out-hidden .hidden-bar{display:flex;margin:6px 0}
+.output{min-width:0;padding:8px 0 4px 2px;overflow-x:auto}
+.output pre,pre.ansi{margin:0;font:12.8px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
+body.nowrap .output pre.ansi{white-space:pre;overflow-wrap:normal}
+body.limit .outputs:not(.unlimited) pre.ansi{max-height:32em;overflow:auto;scrollbar-width:thin}
+.output.stderr{background:var(--stderr-bg);border-radius:8px;padding:8px 12px;margin:4px 0}
+.output.error{background:var(--err-bg);border-left:3px solid var(--err-line);border-radius:4px 8px 8px 4px;padding:10px 14px;margin:6px 0}
+.output.img-out img{max-width:100%;height:auto;background:var(--img-bg);border-radius:4px;cursor:zoom-in;display:block}
+.output.html-out{padding-top:6px}
+.trunc-btn{display:block;width:100%;margin:10px 0;padding:8px 12px;border:1px dashed var(--border-strong);border-radius:8px;background:var(--surface);color:var(--muted);font:12.5px var(--sans);cursor:pointer;text-align:center}
+.trunc-btn:hover{color:var(--accent);border-color:var(--accent-line)}
+.note{font:12.5px/1.5 var(--sans);color:var(--faint);font-style:italic;padding:2px 0 6px}
+details.js-out summary{cursor:pointer;color:var(--faint);font-size:12.5px}
+.raw{background:var(--surface-2);border-radius:8px;padding:10px 14px;margin:0;font:12.8px/1.5 var(--mono);white-space:pre-wrap;color:var(--muted)}
+.cell-error{color:var(--ansi-1);font:12.5px var(--mono)}
+
+/* markdown */
+.md{min-width:0;padding:2px 2px;line-height:1.68;overflow-wrap:break-word;border-radius:8px}
+.md>:first-child{margin-top:0}
+.md>:last-child{margin-bottom:0}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{line-height:1.3;letter-spacing:-.015em;margin:1.3em 0 .5em;font-weight:680;position:relative;scroll-margin-top:calc(var(--hh) + 12px)}
+.md h1{font-size:1.85em} .md h2{font-size:1.45em;padding-bottom:.25em;border-bottom:1px solid var(--border)} .md h3{font-size:1.2em} .md h4{font-size:1.05em} .md h5,.md h6{font-size:.95em;color:var(--muted)}
+.md .anchor{margin-left:.35em;color:var(--faint);text-decoration:none;opacity:0;font-weight:400;font-size:.8em}
+.md h1:hover .anchor,.md h2:hover .anchor,.md h3:hover .anchor,.md h4:hover .anchor,.md h5:hover .anchor,.md h6:hover .anchor{opacity:1}
+.md p,.md ul,.md ol,.md blockquote,.md pre,.md .table-wrap{margin:0 0 .85em}
+.md a{color:var(--accent);text-decoration:underline;text-decoration-color:var(--accent-line);text-underline-offset:2px}
+.md a:hover{text-decoration-color:var(--accent)}
+.md ul,.md ol{padding-left:1.6em}
+.md li{margin:.2em 0}
+.md li>ul,.md li>ol{margin:.2em 0}
+.md .tight>li>p{margin:0}
+.md li.task{list-style:none;margin-left:-1.3em}
+.md li.task input{margin:0 .45em 0 0;vertical-align:-1px}
+.md code{font:.88em var(--mono);background:var(--surface-2);border:1px solid var(--border);padding:.08em .38em;border-radius:5px}
+.md pre{background:var(--code-bg);border:1px solid var(--border);border-radius:9px;padding:11px 14px;overflow-x:auto;font:13px/1.55 var(--mono)}
+.md pre code{background:none;border:0;padding:0;font:inherit;white-space:pre}
+.md blockquote{margin-left:0;padding:.1em 1em;border-left:3px solid var(--border-strong);color:var(--muted)}
+.md hr{border:0;border-top:1px solid var(--border);margin:1.6em 0}
+.md img{max-width:100%;height:auto;border-radius:4px}
+.md img.broken{display:none}
+.md .img-missing{display:inline-block;font-size:12px;color:var(--faint);border:1px dashed var(--border-strong);border-radius:6px;padding:2px 8px}
+.md .table-wrap{overflow-x:auto}
+.md table{border-collapse:collapse;font-size:.93em}
+.md th,.md td{border:1px solid var(--border);padding:.4em .75em}
+.md th{background:var(--surface-2);font-weight:600}
+.md kbd{font:.82em var(--mono);border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:5px;padding:.05em .4em;background:var(--surface)}
+.md details{margin:0 0 .85em;padding:.4em .9em;border:1px solid var(--border);border-radius:8px}
+.md summary{cursor:pointer;font-weight:550}
+.md .alert{padding:.8em 1em;border-radius:9px;margin:0 0 .85em;border:1px solid var(--border);background:var(--surface-2)}
+.md .alert-info{background:color-mix(in srgb,var(--surface) 86%,#2d8bd4);border-color:color-mix(in srgb,var(--border) 50%,#2d8bd4)}
+.md .alert-success{background:color-mix(in srgb,var(--surface) 86%,#2f9e4b);border-color:color-mix(in srgb,var(--border) 50%,#2f9e4b)}
+.md .alert-warning{background:color-mix(in srgb,var(--surface) 84%,#d9a300);border-color:color-mix(in srgb,var(--border) 50%,#d9a300)}
+.md .alert-danger{background:color-mix(in srgb,var(--surface) 86%,#d94040);border-color:color-mix(in srgb,var(--border) 50%,#d94040)}
+.math{font-family:var(--serif);font-size:1.06em;font-style:italic;white-space:nowrap}
+.math-display{display:block;font-family:var(--serif);font-size:1.1em;font-style:italic;text-align:center;margin:.6em 0 .9em;overflow-x:auto;padding:.2em 0}
+.math sub,.math sup,.math-display sub,.math-display sup{font-size:.72em}
+.frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;font-size:.9em;margin:0 .12em}
+.frac>span:first-child{border-bottom:1px solid currentColor;padding:0 .2em}
+.frac>span:last-child{padding:0 .2em}
+.sqrt{border-top:1px solid currentColor;padding:0 .1em}
+.ovl{border-top:1px solid currentColor}
+.upr{font-style:normal}
+
+/* overlays */
+#drop{position:fixed;inset:0;z-index:60;display:none;place-items:center;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(3px)}
+#drop.on{display:grid}
+#drop div{padding:28px 40px;border:2px dashed var(--accent);border-radius:18px;background:var(--surface);font-weight:600;font-size:17px;color:var(--accent);box-shadow:var(--shadow)}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);z-index:70;padding:10px 16px;border-radius:10px;background:var(--text);color:var(--bg);font-size:13.5px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:all .2s;max-width:calc(100vw - 32px)}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.error{background:#c22f2f;color:#fff}
+#busy{position:fixed;top:calc(var(--hh) + 14px);left:50%;transform:translateX(-50%);z-index:65;display:none;align-items:center;gap:10px;padding:9px 16px;border-radius:999px;background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);font-size:13.5px}
+#busy.on{display:flex}
+#lightbox{position:fixed;inset:0;z-index:80;display:none;place-items:center;background:rgba(0,0,0,.78);cursor:zoom-out;padding:24px}
+#lightbox.on{display:grid}
+#lightbox img{max-width:100%;max-height:100%;background:#fff;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+
+body.hide-code .cell-code>.input{display:none}
+body.hide-code .cell-code>.outputs{margin-top:0}
+body.hide-out .outputs{display:none}
+
+/* ---------- responsive ---------- */
+@media (max-width:900px){
+  #sidebar{position:fixed;left:0;top:var(--hh);z-index:25;box-shadow:var(--shadow);width:min(300px,86vw)}
+  body:not(.side-open) #sidebar{display:none}
+}
+@media (max-width:700px){
+  :root{--pw:0px}
+  main{padding:18px 16px 100px}
+  .row{grid-template-columns:minmax(0,1fr)}
+  .prompt{display:none}
+  .collapser{display:none}
+  .bar{gap:4px;padding:0 8px}
+  .brand{display:none}
+  .nb-head{margin-left:0}
+  .n-badge{display:block;position:absolute;top:-9px;left:10px;font:11px/18px var(--mono);padding:0 6px;border-radius:5px;background:var(--surface);border:1px solid var(--border);color:var(--p-in)}
+  .cell-code{margin-top:22px}
+  .brand span{display:none}
+  .btn .lbl{display:none}
+  .btn{padding:0 9px}
+  .nb-title{font-size:22px}
+}
+
+@media print{
+  .bar,#sidebar,.copy-btn,.collapser,#welcome{display:none!important}
+  body{background:#fff}
+  main{padding:0}
+  .cell{content-visibility:visible;break-inside:avoid-page}
+  body.limit .outputs pre.ansi{max-height:none!important}
+}
+</style>
+</head>
+<body class="empty">
+<header class="bar">
+  <button class="icon-btn" id="btnSide" title="Toggle outline" aria-label="Toggle outline">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
+  </button>
+  <div class="brand">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M8 13l2 2-2 2M12 17h4"/></svg>
+    <span>Notebook Viewer</span>
+  </div>
+  <nav class="tabs" id="tabs" aria-label="Open notebooks"></nav>
+  <details class="menu" id="viewMenu">
+    <summary class="btn" title="View options">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h7"/></svg><span class="lbl">View</span>
+    </summary>
+    <div class="menu-panel">
+      <label>Show code <input type="checkbox" class="switch" data-pref="code"></label>
+      <label>Show outputs <input type="checkbox" class="switch" data-pref="out"></label>
+      <label>Line numbers <input type="checkbox" class="switch" data-pref="ln"></label>
+      <label>Wrap long output lines <input type="checkbox" class="switch" data-pref="wrap"></label>
+      <label>Limit output height <input type="checkbox" class="switch" data-pref="limit"></label>
+      <div class="menu-sep"></div>
+      <button class="mi" data-act="collapse">Collapse all outputs</button>
+      <button class="mi" data-act="expand">Expand all outputs</button>
+      <button class="mi" data-act="print">Print / save as PDF <kbd>Ctrl P</kbd></button>
+      <div class="menu-sep"></div>
+      <div class="menu-h">Theme</div>
+      <div class="seg" id="themeSeg"><button data-theme="auto">Auto</button><button data-theme="light">Light</button><button data-theme="dark">Dark</button></div>
+    </div>
+  </details>
+  <button class="btn primary" id="btnOpen" title="Open notebook (Ctrl+O)">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Open</span>
+  </button>
+  <input type="file" id="fileInput" accept=".ipynb,application/x-ipynb+json,application/json" multiple hidden>
+</header>
+
+<div class="layout">
+  <aside id="sidebar">
+    <div class="side-head">
+      <div class="side-title">Outline</div>
+      <input class="filter" id="tocFilter" type="search" placeholder="Filter cells & headings…" aria-label="Filter outline">
+    </div>
+    <nav id="toc"></nav>
+  </aside>
+  <main id="main">
+    <section id="welcome">
+      <div class="drop-card" id="dropCard" role="button" tabindex="0">
+        <div class="drop-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 14l2 2-2 2M12 18h4"/></svg></div>
+        <h1>Open a Jupyter notebook</h1>
+        <p>Drop <b>.ipynb</b> files anywhere on this page, or</p>
+        <button class="btn primary" type="button" id="btnOpen2">Choose files…</button>
+        <p class="fine">Runs entirely in your browser. No internet needed, nothing is uploaded.</p>
+      </div>
+      <div class="features"><span>Markdown & tables</span><span>Syntax highlighting</span><span>Images & SVG</span><span>HTML / DataFrames</span><span>ANSI tracebacks</span><span>Basic math</span><span>Multiple tabs</span><span>Dark mode</span></div>
+    </section>
+    <div id="docs"></div>
+  </main>
+</div>
+
+<div id="drop"><div>Drop notebooks to open</div></div>
+<div id="busy"><div class="spin"></div><span id="busyText">Opening…</span></div>
+<div id="toast" role="status"></div>
+<div id="lightbox"><img alt=""></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= utilities ================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const esc = s => String(s).replace(/[&<>"']/g, c => ESC[c]);
+const escText = s => String(s).replace(/[&<>]/g, c => ESC[c]);
+const joinSrc = v => Array.isArray(v) ? v.join('') : (v == null ? '' : String(v));
+const fmtBytes = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
+const fmtNum = n => n.toLocaleString();
+const tick = () => new Promise(r => setTimeout(r, 0));
+const store = {
+  get(k) { try { return localStorage.getItem('nbviewer:' + k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem('nbviewer:' + k, v); } catch (e) {} }
+};
+function countLines(s) { let c = 0, i = -1; while ((i = s.indexOf('\n', i + 1)) !== -1) c++; return c; }
+
+/* ================= sanitizer ================= */
+const BAD_TAGS = 'script,base,meta,link,object,embed,applet,frame,frameset,portal';
+const URL_ATTRS = new Set(['href', 'src', 'xlink:href', 'action', 'formaction', 'poster', 'background', 'data', 'srcset', 'ping']);
+function sanitizeInto(target, html, keepStyle) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  $$(BAD_TAGS + (keepStyle ? '' : ',style'), doc).forEach(e => e.remove());
+  $$('set,animate', doc).forEach(e => { if (/^(on|href|xlink:href)/i.test(e.getAttribute('attributeName') || '')) e.remove(); });
+  for (const e of $$('*', doc)) {
+    for (const a of Array.from(e.attributes)) {
+      const n = a.name.toLowerCase();
+      if (n.startsWith('on')) e.removeAttribute(a.name);
+      else if (URL_ATTRS.has(n) && /^(javascript|vbscript|data:text\/html)/i.test(a.value.replace(/[\s\u0000-\u001f]+/g, ''))) e.removeAttribute(a.name);
+    }
+    if (e.tagName === 'IFRAME') e.setAttribute('sandbox', '');
+    if (e.tagName === 'FORM') e.removeAttribute('action');
+  }
+  target.append(...Array.from(doc.head.childNodes), ...Array.from(doc.body.childNodes));
+}
+
+/* ================= syntax highlighting ================= */
+const PY_KW = new Set('and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield match case'.split(' '));
+const PY_CONST = new Set(['True', 'False', 'None', 'NotImplemented', 'Ellipsis', '__name__', '__file__']);
+const PY_BI = new Set('abs all any ascii bin bool breakpoint bytearray bytes callable chr classmethod compile complex delattr dict dir divmod enumerate eval exec filter float format frozenset getattr globals hasattr hash help hex id input int isinstance issubclass iter len list locals map max memoryview min next object oct open ord pow print property range repr reversed round set setattr slice sorted staticmethod str sum super tuple type vars zip Exception BaseException ValueError TypeError KeyError IndexError RuntimeError AttributeError ImportError ModuleNotFoundError NameError OSError FileNotFoundError StopIteration ZeroDivisionError NotImplementedError AssertionError KeyboardInterrupt'.split(' '));
+const PY_RE = /(^[ \t]*[!%][^\n]*)|(#[^\n]*)|((?:\b[rRbBuUfF]{1,2})?(?:"""[\s\S]*?(?:"""|(?![\s\S]))|'''[\s\S]*?(?:'''|(?![\s\S]))|"(?:[^"\\\n]|\\[\s\S])*(?:"|$)|'(?:[^'\\\n]|\\[\s\S])*(?:'|$)))|(@[A-Za-z_][\w.]*)|(\b0[xXoObB][\da-fA-F_]+\b|\b\d[\d_]*(?:\.[\d_]*)?(?:[eE][+-]?\d+)?[jJ]?\b)|([A-Za-z_]\w*)/gm;
+
+function hlPython(code) {
+  let out = '', last = 0, prev = '', m;
+  PY_RE.lastIndex = 0;
+  while ((m = PY_RE.exec(code))) {
+    if (m[0] === '') { PY_RE.lastIndex++; continue; }
+    out += escText(code.slice(last, m.index));
+    last = PY_RE.lastIndex;
+    const t = m[0], e = escText(t);
+    let cls = '';
+    if (m[1]) cls = 'mg';
+    else if (m[2]) cls = 'co';
+    else if (m[3]) cls = 'st';
+    else if (m[4]) cls = 'de';
+    else if (m[5]) cls = 'nu';
+    else {
+      if (PY_KW.has(t)) cls = 'kw';
+      else if (PY_CONST.has(t)) cls = 'cn';
+      else if (prev === 'def') cls = 'fd';
+      else if (prev === 'class') cls = 'cl';
+      else if (t === 'self' || t === 'cls') cls = 'se';
+      else if (PY_BI.has(t)) cls = 'bi';
+      else if (/^\s*\(/.test(code.slice(last, last + 8))) cls = 'fn';
+      prev = t;
+      out += cls ? `<span class="${cls}">${e}</span>` : e;
+      continue;
+    }
+    prev = '';
+    out += `<span class="${cls}">${e}</span>`;
+  }
+  return out + escText(code.slice(last));
+}
+
+const GEN_KW = new Set(('if else elif for while do switch case default break continue return function func fn def class struct enum union interface impl trait ' +
+  'public private protected static const let var val mut new delete this self super try catch finally throw throws import export from package namespace ' +
+  'using include typedef typename template virtual override extends implements async await yield in of is as and or not void int long short char float double ' +
+  'bool boolean string auto unsigned signed true false null nullptr nil None True False undefined echo then fi esac done local select where insert update ' +
+  'create table into values join on order group by having limit end begin elseif sizeof goto extern inline volatile with lambda match loop pub crate mod use ' +
+  'go chan defer map type range export alias sudo cd').split(' '));
+const HASH_LANGS = /^(bash|sh|shell|zsh|console|r|ruby|rb|perl|yaml|yml|toml|ini|dockerfile|make|makefile|powershell|ps1|pwsh|julia|jl|conf|cmake|python|py|nim|elixir|coffee|tcl)$/;
+const NO_SLASH_LANGS = /^(bash|sh|shell|zsh|console|r|ruby|rb|perl|yaml|yml|toml|ini|powershell|ps1|pwsh|sql|lua|haskell|hs|julia|jl|dockerfile|make|makefile|conf|elixir)$/;
+const DASH_LANGS = /^(sql|lua|haskell|hs|plsql|mysql|postgres|postgresql|sqlite|elm)$/;
+const genCache = {};
+function genRe(lang) {
+  if (genCache[lang]) return genCache[lang];
+  const parts = [];
+  const slash = !NO_SLASH_LANGS.test(lang), hash = HASH_LANGS.test(lang), dash = DASH_LANGS.test(lang);
+  const com = [];
+  if (slash) com.push(/\/\*[\s\S]*?(?:\*\/|(?![\s\S]))/.source, /\/\/[^\n]*/.source);
+  if (hash) com.push(/#[^\n]*/.source);
+  if (dash) com.push(/--[^\n]*/.source);
+  parts.push('(' + (com.length ? com.join('|') : '(?!)') + ')');
+  parts.push('(' + /"(?:[^"\\\n]|\\.)*"?|'(?:[^'\\\n]|\\.)*'?|`(?:[^`\\]|\\[\s\S])*`?/.source + ')');
+  parts.push('(' + (slash && !hash ? /^[ \t]*#[ \t]*[a-z]+\b[^\n]*/.source : '(?!)') + ')');
+  parts.push('(' + /\b(?:0[xX][\da-fA-F]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)[uUlLfF]*\b/.source + ')');
+  parts.push('(' + /\$\{?[A-Za-z_][\w]*\}?|[A-Za-z_][\w]*/.source + ')');
+  return (genCache[lang] = new RegExp(parts.join('|'), 'gm'));
+}
+function hlGeneric(code, lang) {
+  const re = genRe(lang);
+  let out = '', last = 0, m;
+  re.lastIndex = 0;
+  while ((m = re.exec(code))) {
+    if (m[0] === '') { re.lastIndex++; continue; }
+    out += escText(code.slice(last, m.index));
+    last = re.lastIndex;
+    const t = m[0], e = escText(t);
+    let cls = m[1] ? 'co' : m[2] ? 'st' : m[3] ? 'pp' : m[4] ? 'nu' : '';
+    if (m[5]) {
+      if (t[0] === '$') cls = 'de';
+      else if (GEN_KW.has(t)) cls = 'kw';
+      else if (/^\s*\(/.test(code.slice(last, last + 8))) cls = 'fn';
+    }
+    out += cls ? `<span class="${cls}">${e}</span>` : e;
+  }
+  return out + escText(code.slice(last));
+}
+function highlight(code, lang) {
+  lang = (lang || '').toLowerCase().trim();
+  if (code.length > 400000) return escText(code);
+  if (/^(python\d?|py\d?|ipython\d?|sage|pycon|gyp)$/.test(lang)) return hlPython(code);
+  if (!lang || /^(text|plain|txt|output|none|log)$/.test(lang)) return escText(code);
+  return hlGeneric(code, lang);
+}
+
+/* ================= ANSI / console text ================= */
+const ANSI_RE = /\x1b\[([0-9;:?]*)([A-Za-z])|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b[()][A-Za-z0-9]|\x1b[=>78DEHMc]/g;
+function xterm256(n) {
+  if (n < 16) return `var(--ansi-${n})`;
+  if (n >= 232) { const v = 8 + (n - 232) * 10; return `rgb(${v},${v},${v})`; }
+  n -= 16; const c = x => (x ? x * 40 + 55 : 0);
+  return `rgb(${c(Math.floor(n / 36))},${c(Math.floor(n / 6) % 6)},${c(n % 6)})`;
+}
+function applySGR(st, params) {
+  const p = params === '' ? [0] : params.split(/[;:]/).map(x => (x === '' ? 0 : +x));
+  for (let i = 0; i < p.length; i++) {
+    const c = p[i];
+    if (c === 0) { st.fg = st.bg = null; st.b = st.d = st.i = st.u = st.inv = st.s = false; }
+    else if (c === 1) st.b = true; else if (c === 2) st.d = true; else if (c === 3) st.i = true;
+    else if (c === 4) st.u = true; else if (c === 7) st.inv = true; else if (c === 9) st.s = true;
+    else if (c === 22) st.b = st.d = false; else if (c === 23) st.i = false; else if (c === 24) st.u = false;
+    else if (c === 27) st.inv = false; else if (c === 29) st.s = false;
+    else if (c >= 30 && c <= 37) st.fg = `var(--ansi-${c - 30})`;
+    else if (c >= 90 && c <= 97) st.fg = `var(--ansi-${c - 90 + 8})`;
+    else if (c >= 40 && c <= 47) st.bg = `var(--ansi-${c - 40})`;
+    else if (c >= 100 && c <= 107) st.bg = `var(--ansi-${c - 100 + 8})`;
+    else if (c === 39) st.fg = null; else if (c === 49) st.bg = null;
+    else if (c === 38 || c === 48) {
+      let col = null;
+      if (p[i + 1] === 5) { col = xterm256(p[i + 2] & 255); i += 2; }
+      else if (p[i + 1] === 2) { col = `rgb(${p[i + 2] | 0},${p[i + 3] | 0},${p[i + 4] | 0})`; i += 4; }
+      if (c === 38) st.fg = col; else st.bg = col;
+    }
+  }
+}
+function styleOf(st) {
+  let fg = st.fg, bg = st.bg, s = '';
+  if (st.inv) { fg = st.bg || 'var(--bg)'; bg = st.fg || 'var(--text)'; }
+  if (fg) s += `color:${fg};`;
+  if (bg) s += `background:${bg};`;
+  if (st.b) s += 'font-weight:bold;';
+  if (st.d) s += 'opacity:.65;';
+  if (st.i) s += 'font-style:italic;';
+  if (st.u || st.s) s += `text-decoration:${st.u ? 'underline' : ''} ${st.s ? 'line-through' : ''};`;
+  return s;
+}
+function ansiToHtml(text) {
+  if (text.indexOf('\x1b') === -1) return escText(text);
+  const st = { fg: null, bg: null, b: false, d: false, i: false, u: false, inv: false, s: false };
+  let out = '', last = 0, open = false, m;
+  ANSI_RE.lastIndex = 0;
+  while ((m = ANSI_RE.exec(text))) {
+    out += escText(text.slice(last, m.index));
+    last = ANSI_RE.lastIndex;
+    if (m[2] === 'm') {
+      applySGR(st, m[1]);
+      if (open) { out += '</span>'; open = false; }
+      const s = styleOf(st);
+      if (s) { out += `<span style="${s}">`; open = true; }
+    }
+  }
+  out += escText(text.slice(last));
+  if (open) out += '</span>';
+  return out;
+}
+// Emulate a terminal: \r returns to line start (progress bars), \b deletes a char.
+function fixConsole(t) {
+  t = t.replace(/\r+\n/g, '\n');
+  if (t.indexOf('\b') !== -1) {
+    t = t.split('\n').map(line => {
+      if (line.indexOf('\b') === -1) return line;
+      let r = '';
+      for (const ch of line) { if (ch === '\b') r = r.slice(0, -1); else r += ch; }
+      return r;
+    }).join('\n');
+  }
+  if (t.indexOf('\r') !== -1) {
+    t = t.split('\n').map(line => {
+      if (line.indexOf('\r') === -1) return line;
+      let r = '';
+      for (const seg of line.split('\r')) { if (seg) r = seg.length >= r.length ? seg : seg + r.slice(seg.length); }
+      return r;
+    }).join('\n');
+  }
+  return t;
+}
+const TRUNC_LIMIT = 150000, TRUNC_KEEP = 50000;
+function consoleBlock(text, cls) {
+  text = fixConsole(text);
+  const pre = el('pre', 'ansi' + (cls ? ' ' + cls : ''));
+  if (text.length <= TRUNC_LIMIT) { pre.innerHTML = ansiToHtml(text); return pre; }
+  let headEnd = text.lastIndexOf('\n', TRUNC_KEEP); if (headEnd < TRUNC_KEEP / 2) headEnd = TRUNC_KEEP;
+  let tailStart = text.indexOf('\n', text.length - TRUNC_KEEP); if (tailStart === -1 || tailStart > text.length - TRUNC_KEEP / 2) tailStart = text.length - TRUNC_KEEP;
+  const hidden = text.slice(headEnd, tailStart);
+  const head = el('span'); head.innerHTML = ansiToHtml(text.slice(0, headEnd));
+  const tail = el('span'); tail.innerHTML = ansiToHtml(text.slice(tailStart));
+  const btn = el('button', 'trunc-btn');
+  btn.type = 'button';
+  btn.textContent = `⋯ ${fmtNum(countLines(hidden))} lines (${fmtBytes(hidden.length)}) hidden. Click to show all${hidden.length > 3e6 ? ' (may be slow)' : ''}`;
+  btn.onclick = () => { btn.textContent = 'Rendering…'; setTimeout(() => { pre.innerHTML = ansiToHtml(text); }, 20); };
+  pre.append(head, btn, tail);
+  return pre;
+}
+
+/* ================= TeX → HTML (lightweight, offline) ================= */
+const TEX_SYM = {
+  alpha:'α',beta:'β',gamma:'γ',delta:'δ',epsilon:'ϵ',varepsilon:'ε',zeta:'ζ',eta:'η',theta:'θ',vartheta:'ϑ',iota:'ι',kappa:'κ',lambda:'λ',mu:'μ',nu:'ν',xi:'ξ',
+  pi:'π',varpi:'ϖ',rho:'ρ',varrho:'ϱ',sigma:'σ',varsigma:'ς',tau:'τ',upsilon:'υ',phi:'ϕ',varphi:'φ',chi:'χ',psi:'ψ',omega:'ω',
+  Gamma:'Γ',Delta:'Δ',Theta:'Θ',Lambda:'Λ',Xi:'Ξ',Pi:'Π',Sigma:'Σ',Upsilon:'Υ',Phi:'Φ',Psi:'Ψ',Omega:'Ω',
+  times:'×',cdot:'·',div:'÷',pm:'±',mp:'∓',leq:'≤',le:'≤',geq:'≥',ge:'≥',neq:'≠',ne:'≠',approx:'≈',equiv:'≡',sim:'∼',simeq:'≃',cong:'≅',propto:'∝',
+  ll:'≪',gg:'≫',infty:'∞',sum:'∑',prod:'∏',coprod:'∐',int:'∫',iint:'∬',iiint:'∭',oint:'∮',partial:'∂',nabla:'∇',forall:'∀',exists:'∃',nexists:'∄',
+  in:'∈',notin:'∉',ni:'∋',subset:'⊂',subseteq:'⊆',supset:'⊃',supseteq:'⊇',cup:'∪',cap:'∩',bigcup:'⋃',bigcap:'⋂',emptyset:'∅',varnothing:'∅',setminus:'∖',
+  rightarrow:'→',to:'→',leftarrow:'←',gets:'←',Rightarrow:'⇒',Leftarrow:'⇐',leftrightarrow:'↔',Leftrightarrow:'⇔',iff:'⟺',implies:'⟹',mapsto:'↦',
+  longrightarrow:'⟶',uparrow:'↑',downarrow:'↓',cdots:'⋯',ldots:'…',dots:'…',vdots:'⋮',ddots:'⋱',langle:'⟨',rangle:'⟩',lfloor:'⌊',rfloor:'⌋',lceil:'⌈',rceil:'⌉',
+  neg:'¬',lnot:'¬',land:'∧',lor:'∨',wedge:'∧',vee:'∨',oplus:'⊕',otimes:'⊗',odot:'⊙',circ:'∘',bullet:'•',star:'⋆',ast:'∗',dagger:'†',
+  hbar:'ℏ',ell:'ℓ',Re:'ℜ',Im:'ℑ',aleph:'ℵ',prime:'′',angle:'∠',perp:'⊥',parallel:'∥',mid:'∣',top:'⊤',bot:'⊥',triangle:'△',square:'□',checkmark:'✓',
+  quad:' ',qquad:'  ',degree:'°',deg:'deg',
+  log:'log',ln:'ln',lg:'lg',exp:'exp',sin:'sin',cos:'cos',tan:'tan',sec:'sec',csc:'csc',cot:'cot',arcsin:'arcsin',arccos:'arccos',arctan:'arctan',
+  sinh:'sinh',cosh:'cosh',tanh:'tanh',max:'max',min:'min',lim:'lim',sup:'sup',inf:'inf',det:'det',arg:'arg',argmax:'argmax',argmin:'argmin',dim:'dim',ker:'ker',gcd:'gcd',Pr:'Pr',mod:'mod',bmod:'mod'
+};
+const UPRIGHT = new Set(['log','ln','lg','exp','sin','cos','tan','sec','csc','cot','arcsin','arccos','arctan','sinh','cosh','tanh','max','min','lim','sup','inf','det','arg','argmax','argmin','dim','ker','gcd','Pr','mod','bmod','deg']);
+const BB = { R:'ℝ', N:'ℕ', Z:'ℤ', Q:'ℚ', C:'ℂ', P:'ℙ', E:'𝔼', H:'ℍ', F:'𝔽', '1':'𝟙' };
+const ACCENT = { hat:'̂', widehat:'̂', bar:'̄', vec:'⃗', tilde:'̃', widetilde:'̃', dot:'̇', ddot:'̈' };
+function texToHtml(tex) {
+  let s = escText(tex.trim());
+  s = s.replace(/\\\{/g, '\u0003').replace(/\\\}/g, '\u0004').replace(/\\\|/g, '‖').replace(/\\([#$%_&])/g, (m, c) => c === '_' ? '\u0005' : c);
+  s = s.replace(/\\(?:left|right|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|displaystyle|textstyle|limits|nolimits)\b\.?/g, '');
+  s = s.replace(/\\(?:begin|end)\{[^}]*\}(?:\{[^}]*\})?/g, '');
+  s = s.replace(/\\mathbb\s*\{(\w)\}/g, (m, c) => BB[c] || c).replace(/\\mathbb\s*(\w)/g, (m, c) => BB[c] || c);
+  s = s.replace(/\\(?:text|textrm|textit|textbf|mbox|operatorname\*?)\s*\{([^{}]*)\}/g, (m, c) => `<span class="upr">${c}</span>`);
+  s = s.replace(/\\([A-Za-z]+)/g, (m, n) => (n in TEX_SYM) ? (UPRIGHT.has(n) ? `<span class="upr">${TEX_SYM[n]}</span>` : TEX_SYM[n]) : m);
+  for (let k = 0; k < 24; k++) {
+    const before = s;
+    s = s.replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '<span class="frac"><span>$1</span><span>$2</span></span>');
+    s = s.replace(/\\sqrt\s*(?:\[([^\]]*)\])?\s*\{([^{}]*)\}/g, (m, n, c) => (n ? `<sup>${n}</sup>` : '') + `√<span class="sqrt">${c}</span>`);
+    s = s.replace(/\\(hat|widehat|bar|vec|tilde|widetilde|dot|ddot|overline|underline)\s*\{([^{}]*)\}/g, (m, a, c) =>
+      a === 'overline' ? `<span class="ovl">${c}</span>` : a === 'underline' ? `<u>${c}</u>` : (c.length === 1 ? c + ACCENT[a] : `<span class="ovl">${c}</span>`));
+    s = s.replace(/\\(hat|bar|vec|tilde|dot|ddot)\s+(\w)/g, (m, a, c) => c + ACCENT[a]);
+    s = s.replace(/\\(?:mathrm|mathbf|mathit|mathcal|mathsf|mathtt|boldsymbol|bm|mathscr|mathfrak)\s*\{([^{}]*)\}/g, '$1');
+    s = s.replace(/\^\{([^{}]*)\}/g, '<sup>$1</sup>').replace(/_\{([^{}]*)\}/g, '<sub>$1</sub>');
+    s = s.replace(/\^([^\s{}<\\^_])/g, '<sup>$1</sup>').replace(/_([^\s{}<\\^_])/g, '<sub>$1</sub>');
+    if (s === before) { const t = s.replace(/\{([^{}]*)\}/g, '$1'); if (t === s) break; s = t; }
+  }
+  s = s.replace(/\\\\/g, '<br>').replace(/\\[,;:! ]/g, ' ').replace(/&amp;/g, ' ').replace(/~/g, ' ');
+  return s.replace(/\u0003/g, '{').replace(/\u0004/g, '}').replace(/\u0005/g, '_');
+}
+const mathInline = tex => `<span class="math" title="${esc(tex)}">${texToHtml(tex)}</span>`;
+const mathDisplay = tex => `<span class="math-display" title="${esc(tex.trim())}">${texToHtml(tex)}</span>`;
+
+/* ================= Markdown ================= */
+const HR_RE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
+const FENCE_RE = /^( {0,3})(`{3,}|~{3,})[ \t]*([^\s`{]*)/;
+const LIST_RE = /^( *)([-*+]|\d{1,9}[.)])( +|$)(.*)$/;
+const TABLE_SEP = /^ *\|? *:?-+:? *(?:\| *:?-+:? *)*\|? *$/;
+const HTML_BLOCK_RE = /^ {0,3}<\/?(?:address|article|aside|blockquote|center|details|dialog|dd|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|iframe|li|main|nav|ol|p|pre|section|summary|table|tbody|td|tfoot|th|thead|tr|ul|video|audio|style|svg|picture|font|br|img)(?=[\s/>]|$)/i;
+const HTML_LINE_RE = /^ {0,3}<\/?[A-Za-z][\w-]*(?:\s[^<>]*)?\/?>\s*$/;
+const COMMENT_OPEN = /^ {0,3}<!-{2}/;
+
+function renderMarkdown(text, ctx) {
+  ctx.refs = ctx.refs || {};
+  const lines = [];
+  for (const line of text.replace(/\r\n?/g, '\n').replace(/\t/g, '    ').split('\n')) {
+    const r = line.match(/^ {0,3}\[([^\]]+)\]:\s*<?(\S+?)>?(?:\s+["'(](.*)["')])?\s*$/);
+    if (r && !/^\^/.test(r[1])) ctx.refs[r[1].toLowerCase()] = { url: r[2], title: r[3] };
+    else lines.push(line);
+  }
+  return parseBlocks(lines, ctx);
+}
+
+function parseBlocks(lines, ctx) {
+  const out = []; let para = []; let i = 0;
+  const flush = () => { if (para.length) { out.push('<p>' + inline(para.join('\n').trim(), ctx) + '</p>'); para = []; } };
+  while (i < lines.length) {
+    const l = lines[i]; let m;
+    if (!l.trim()) { flush(); i++; continue; }
+    if ((m = l.match(FENCE_RE))) {
+      flush();
+      const ch = m[2][0], len = m[2].length, ind = m[1].length;
+      const close = new RegExp('^ {0,3}' + ch + '{' + len + ',}[ \\t]*$');
+      const strip = new RegExp('^ {0,' + ind + '}');
+      const body = []; i++;
+      while (i < lines.length && !close.test(lines[i])) { body.push(lines[i].replace(strip, '')); i++; }
+      i++;
+      out.push(`<pre class="md-code"${m[3] ? ` data-lang="${esc(m[3])}"` : ''}><code>${highlight(body.join('\n'), m[3])}</code></pre>`);
+      continue;
+    }
+    if (/^ {0,3}\$\$/.test(l)) {
+      flush();
+      const first = l.trim().slice(2);
+      const endIdx = first.indexOf('$$');
+      if (endIdx !== -1) {
+        out.push(mathDisplay(first.slice(0, endIdx)));
+        const rest = first.slice(endIdx + 2).trim(); if (rest) para.push(rest);
+        i++; continue;
+      }
+      const body = [first]; i++;
+      while (i < lines.length && lines[i].indexOf('$$') === -1) { body.push(lines[i]); i++; }
+      if (i < lines.length) { body.push(lines[i].slice(0, lines[i].indexOf('$$'))); i++; }
+      out.push(mathDisplay(body.join('\n')));
+      continue;
+    }
+    if ((m = l.match(/^ {0,3}\\begin\{([A-Za-z]+\*?)\}/))) {
+      flush();
+      const endTok = '\\end{' + m[1] + '}'; const body = [];
+      while (i < lines.length) { body.push(lines[i]); if (lines[i].indexOf(endTok) !== -1) { i++; break; } i++; }
+      out.push(mathDisplay(body.join('\n')));
+      continue;
+    }
+    if ((m = l.match(/^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/))) {
+      flush();
+      const lv = m[1].length;
+      out.push(`<h${lv}>${inline((m[2] || '').trim(), ctx)}</h${lv}>`);
+      i++; continue;
+    }
+    if (para.length && /^ {0,3}=+[ \t]*$/.test(l)) { const t = para.join('\n'); para = []; out.push(`<h1>${inline(t.trim(), ctx)}</h1>`); i++; continue; }
+    if (para.length && /^ {0,3}-+[ \t]*$/.test(l)) { const t = para.join('\n'); para = []; out.push(`<h2>${inline(t.trim(), ctx)}</h2>`); i++; continue; }
+    if (HR_RE.test(l)) { flush(); out.push('<hr>'); i++; continue; }
+    if (/^ {0,3}>/.test(l)) {
+      flush();
+      const q = [];
+      while (i < lines.length) {
+        const x = lines[i];
+        if (/^ {0,3}>/.test(x)) q.push(x.replace(/^ {0,3}> ?/, ''));
+        else if (x.trim() && q.length && q[q.length - 1].trim() && !LIST_RE.test(x) && !/^ {0,3}(#|```|~~~)/.test(x)) q.push(x);
+        else break;
+        i++;
+      }
+      out.push('<blockquote>' + parseBlocks(q, ctx) + '</blockquote>');
+      continue;
+    }
+    if (l.indexOf('|') !== -1 && i + 1 < lines.length && lines[i + 1].indexOf('|') !== -1 && TABLE_SEP.test(lines[i + 1])) {
+      flush(); i = parseTable(lines, i, out, ctx); continue;
+    }
+    if ((m = l.match(LIST_RE)) && (!para.length || (m[4].trim() && (!/\d/.test(m[2]) || /^1[.)]$/.test(m[2]))))) {
+      flush(); i = parseList(lines, i, out, ctx); continue;
+    }
+    if (!para.length && /^ {4}/.test(l)) {
+      const body = [];
+      while (i < lines.length && (/^ {4}/.test(lines[i]) || !lines[i].trim())) { body.push(lines[i].slice(4)); i++; }
+      while (body.length && !body[body.length - 1].trim()) body.pop();
+      out.push(`<pre class="md-code"><code>${escText(body.join('\n'))}</code></pre>`);
+      continue;
+    }
+    if (COMMENT_OPEN.test(l)) {
+      flush();
+      while (i < lines.length && lines[i].indexOf('-->') === -1) i++;
+      i++; continue;
+    }
+    if (HTML_BLOCK_RE.test(l) || (!para.length && HTML_LINE_RE.test(l))) {
+      flush();
+      const body = [];
+      while (i < lines.length && lines[i].trim()) { body.push(lines[i]); i++; }
+      out.push(body.join('\n'));
+      continue;
+    }
+    para.push(l); i++;
+  }
+  flush();
+  return out.join('\n');
+}
+
+function splitRow(r) {
+  r = r.trim();
+  if (r.startsWith('|')) r = r.slice(1);
+  if (r.endsWith('|') && !r.endsWith('\\|')) r = r.slice(0, -1);
+  const cells = []; let cur = '', inCode = false;
+  for (let k = 0; k < r.length; k++) {
+    const c = r[k];
+    if (c === '\\' && r[k + 1] === '|') { cur += '|'; k++; continue; }
+    if (c === '`') inCode = !inCode;
+    if (c === '|' && !inCode) { cells.push(cur.trim()); cur = ''; continue; }
+    cur += c;
+  }
+  cells.push(cur.trim());
+  return cells;
+}
+function parseTable(lines, i, out, ctx) {
+  const head = splitRow(lines[i]);
+  const aligns = splitRow(lines[i + 1]).map(c => { const L = c.startsWith(':'), R = c.endsWith(':'); return L && R ? 'center' : R ? 'right' : L ? 'left' : ''; });
+  i += 2;
+  const rows = [];
+  while (i < lines.length && lines[i].trim() && lines[i].indexOf('|') !== -1) { rows.push(splitRow(lines[i])); i++; }
+  const cell = (tag, c, j) => `<${tag}${aligns[j] ? ` style="text-align:${aligns[j]}"` : ''}>${inline(c || '', ctx)}</${tag}>`;
+  let h = '<div class="table-wrap"><table><thead><tr>' + head.map((c, j) => cell('th', c, j)).join('') + '</tr></thead><tbody>';
+  for (const r of rows) h += '<tr>' + head.map((_, j) => cell('td', r[j], j)).join('') + '</tr>';
+  out.push(h + '</tbody></table></div>');
+  return i;
+}
+function parseList(lines, i, out, ctx) {
+  const m0 = lines[i].match(LIST_RE);
+  const ordered = /\d/.test(m0[2]);
+  const items = []; let cur = null, blank = false, loose = false;
+  while (i < lines.length) {
+    const l = lines[i], m = l.match(LIST_RE);
+    if (m && (!cur || m[1].length < cur.ind) && !HR_RE.test(l)) {
+      if (/\d/.test(m[2]) !== ordered) break;
+      if (cur && blank) loose = true;
+      const sp = m[3].length > 4 || m[3].length === 0 ? 1 : m[3].length;
+      cur = { ind: m[1].length + m[2].length + sp, lines: [m[4]] };
+      items.push(cur); blank = false; i++; continue;
+    }
+    if (!cur) break;
+    if (!l.trim()) { blank = true; cur.lines.push(''); i++; continue; }
+    const ind = l.match(/^ */)[0].length;
+    if (ind >= cur.ind) { cur.lines.push(l.slice(cur.ind)); blank = false; i++; continue; }
+    if (!blank && !m && !/^ {0,3}(#{1,6}\s|>|```|~~~)/.test(l) && !HR_RE.test(l)) { cur.lines.push(l.trim()); i++; continue; }
+    break;
+  }
+  for (const it of items) {
+    while (it.lines.length && !it.lines[it.lines.length - 1].trim()) it.lines.pop();
+    const k = it.lines.indexOf('');
+    const hasFence = it.lines.some(x => /^ {0,3}(```|~~~)/.test(x));
+    if (k > 0 && k < it.lines.length - 1 && !hasFence && !LIST_RE.test(it.lines[k + 1])) loose = true;
+  }
+  const tag = ordered ? 'ol' : 'ul';
+  const start = ordered ? parseInt(m0[2], 10) : 1;
+  let h = `<${tag}${ordered && start !== 1 ? ` start="${start}"` : ''}${loose ? '' : ' class="tight"'}>`;
+  for (const it of items) {
+    let task = '';
+    const t = (it.lines[0] || '').match(/^\[([ xX])\]\s+/);
+    if (t) { task = `<input type="checkbox" disabled${t[1] !== ' ' ? ' checked' : ''}>`; it.lines[0] = it.lines[0].slice(t[0].length); }
+    let body = parseBlocks(it.lines, ctx);
+    if (task) body = body.startsWith('<p>') ? '<p>' + task + body.slice(3) : task + body;
+    h += `<li${task ? ' class="task"' : ''}>${body}</li>`;
+  }
+  out.push(h + `</${tag}>`);
+  return i;
+}
+
+function emph(s) {
+  return s
+    .replace(/\*\*\*(?=\S)([\s\S]*?\S)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(?=\S)([\s\S]*?\S)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^\w])__(?=\S)([\s\S]*?\S)__(?!\w)/g, '$1<strong>$2</strong>')
+    .replace(/\*(?=[^\s*])([\s\S]*?[^\s*])\*/g, '<em>$1</em>')
+    .replace(/(^|[^\w])_(?=[^\s_])([\s\S]*?[^\s_])_(?!\w)/g, '$1<em>$2</em>')
+    .replace(/~~(?=\S)([\s\S]*?\S)~~/g, '<del>$1</del>')
+    .replace(/==(?=\S)([^=\n]*?\S)==/g, '<mark>$1</mark>');
+}
+const URL_PART = /((?:[^\s()<>]|\([^\s()]*\))*)/.source;
+const TITLE_PART = /(?:\s+("[^"]*"|'[^']*'))?/.source;
+const IMG_RE = new RegExp(/!\[([^\]]*)\]\(\s*<?/.source + URL_PART + />?/.source + TITLE_PART + /\s*\)/.source, 'g');
+const LINK_RE = new RegExp(/\[((?:[^\[\]]|\[[^\[\]]*\])*)\]\(\s*<?/.source + URL_PART + />?/.source + TITLE_PART + /\s*\)/.source, 'g');
+const attrUrl = u => u.replace(/"/g, '%22');
+const attrTxt = t => t.replace(/"/g, '&quot;');
+
+function inline(s, ctx) {
+  const stash = [];
+  const put = h => '\u0001' + (stash.push(h) - 1) + '\u0002';
+  s = s.replace(/(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)/g, (m, t, c) => put('<code>' + escText(c.length > 2 && c[0] === ' ' && c[c.length - 1] === ' ' ? c.slice(1, -1) : c) + '</code>'));
+  s = s.replace(/\$\$([\s\S]+?)\$\$/g, (m, c) => put(mathDisplay(c)));
+  s = s.replace(/(^|[^\\$])\$(?=\S)([^$\n]*?[^\s\\])\$(?!\d)/g, (m, p, c) => p + put(mathInline(c)));
+  s = s.replace(/(^|[^\\$])\$(\S)\$(?!\d)/g, (m, p, c) => p + put(mathInline(c)));
+  s = s.replace(/\\\n/g, () => put('<br>'));
+  s = s.replace(/\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g, (m, c) => put(escText(c)));
+  s = s.replace(/<(https?:\/\/[^\s<>]+)>/g, (m, u) => put(`<a href="${attrUrl(esc(u))}">${escText(u)}</a>`));
+  s = s.replace(/<!-{2}[\s\S]*?-->|<\/?[A-Za-z][\w:-]*(?:\s(?:[^<>"']|"[^"]*"|'[^']*')*)?\/?>/g, m => put(m));
+  s = escText(s);
+  s = s.replace(IMG_RE, (m, alt, u, t) => put(`<img src="${attrUrl(u)}" alt="${attrTxt(alt)}"${t ? ` title="${attrTxt(t.slice(1, -1))}"` : ''}>`));
+  s = s.replace(LINK_RE, (m, txt, u, t) => put(`<a href="${attrUrl(u)}"${t ? ` title="${attrTxt(t.slice(1, -1))}"` : ''}>${emph(txt)}</a>`));
+  s = s.replace(/\[([^\[\]]+)\]\[([^\[\]]*)\]/g, (m, txt, ref) => {
+    const r = ctx.refs && ctx.refs[(ref || txt).toLowerCase()];
+    return r ? put(`<a href="${attrUrl(esc(r.url))}"${r.title ? ` title="${esc(r.title)}"` : ''}>${emph(txt)}</a>`) : m;
+  });
+  s = s.replace(/(^|[\s(])((?:https?:\/\/|www\.)[^\s<\u0001\u0002]*[^\s<\u0001\u0002.,;:!?)\]'"*_])/g, (m, p, u) => p + put(`<a href="${(u.startsWith('www.') ? 'http://' : '') + attrUrl(u)}">${u}</a>`));
+  s = emph(s);
+  s = s.replace(/ {2,}\n/g, '<br>\n');
+  let prev;
+  do { prev = s; s = s.replace(/\u0001(\d+)\u0002/g, (m, n) => stash[+n]); } while (s !== prev && s.indexOf('\u0001') !== -1);
+  return s;
+}
+
+function renderMarkdownInto(target, text, ctx) {
+  sanitizeInto(target, renderMarkdown(text, ctx), false);
+  for (const img of $$('img', target)) {
+    const s = img.getAttribute('src') || '';
+    if (s.startsWith('attachment:')) {
+      const att = ctx.attachments && (ctx.attachments[s.slice(11)] || ctx.attachments[decodeURIComponent(s.slice(11))]);
+      if (att) { const mime = Object.keys(att)[0]; img.src = `data:${mime};base64,${joinSrc(att[mime]).replace(/\s+/g, '')}`; }
+    }
+    img.loading = 'lazy';
+    img.addEventListener('error', () => {
+      const ph = el('span', 'img-missing'); ph.textContent = '🖼 ' + (img.alt || img.getAttribute('src') || 'image') + ' (not available offline)';
+      img.replaceWith(ph);
+    }, { once: true });
+  }
+  for (const a of $$('a[href]', target)) {
+    if (!a.getAttribute('href').startsWith('#')) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+  }
+  for (const h of $$('h1,h2,h3,h4,h5,h6', target)) {
+    const text = h.textContent.trim();
+    h.dataset.text = text;
+    if (!h.id) {
+      let base = text.replace(/\s+/g, '-') || 'section', id = base, k = 1;
+      while (ctx.ids.has(id)) id = base + '-' + (k++);
+      h.id = id;
+    }
+    ctx.ids.add(h.id);
+    const a = el('a', 'anchor'); a.href = '#' + h.id; a.textContent = '¶'; a.setAttribute('aria-hidden', 'true'); a.tabIndex = -1;
+    h.append(a);
+  }
+}
+
+/* ================= notebook model ================= */
+const V3MIME = { text: 'text/plain', html: 'text/html', svg: 'image/svg+xml', png: 'image/png', jpeg: 'image/jpeg', latex: 'text/latex', json: 'application/json', javascript: 'application/javascript', markdown: 'text/markdown' };
+function v3out(o) {
+  const t = o.output_type;
+  if (t === 'stream') return { output_type: 'stream', name: o.stream || 'stdout', text: o.text };
+  if (t === 'pyerr') return { output_type: 'error', ename: o.ename, evalue: o.evalue, traceback: o.traceback };
+  const data = {}; for (const k in V3MIME) if (o[k] != null) data[V3MIME[k]] = o[k];
+  return { output_type: t === 'pyout' ? 'execute_result' : 'display_data', data, metadata: o.metadata || {}, execution_count: o.prompt_number };
+}
+function v3cell(c) {
+  if (c.cell_type === 'heading') return { cell_type: 'markdown', source: '#'.repeat(c.level || 1) + ' ' + joinSrc(c.source), metadata: c.metadata || {} };
+  if (c.cell_type === 'code') return { cell_type: 'code', source: c.input, execution_count: c.prompt_number, metadata: c.metadata || {}, outputs: (c.outputs || []).map(v3out) };
+  return c;
+}
+function normalize(nb) {
+  if (!nb || typeof nb !== 'object' || Array.isArray(nb)) throw new Error('not a notebook (expected a JSON object)');
+  let cells = nb.cells;
+  if (!cells && Array.isArray(nb.worksheets)) cells = ((nb.worksheets[0] || {}).cells || []).map(v3cell);
+  if (!Array.isArray(cells)) throw new Error('no "cells" found, so this is not a Jupyter notebook');
+  const meta = nb.metadata || {};
+  const lang = ((meta.language_info && meta.language_info.name) || (meta.kernelspec && meta.kernelspec.language) || 'python').toLowerCase();
+  return { meta, cells, lang, nbformat: nb.nbformat != null ? nb.nbformat + (nb.nbformat_minor != null ? '.' + nb.nbformat_minor : '') : '?' };
+}
+function mergeStreams(outs) {
+  const res = [];
+  for (const o of outs) {
+    if (!o) continue;
+    const last = res[res.length - 1];
+    if (o.output_type === 'stream') {
+      const t = joinSrc(o.text);
+      if (last && last.output_type === 'stream' && last.name === (o.name || 'stdout')) last.parts.push(t);
+      else res.push({ output_type: 'stream', name: o.name || 'stdout', parts: [t] });
+    } else res.push(o);
+  }
+  for (const o of res) if (o.parts) { o.text = o.parts.join(''); delete o.parts; }
+  return res;
+}
+
+/* ================= output rendering ================= */
+const SHADOW_CSS = `
+:host{display:block;color:var(--text);font:14px/1.5 var(--sans);overflow-x:auto}
+.root{max-width:100%}
+table{border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;margin:.2em 0;border:none}
+th,td{padding:.38em .75em;text-align:right;border:none;border-bottom:1px solid var(--border);vertical-align:top;white-space:nowrap}
+thead th{border-bottom:1px solid var(--border-strong);font-weight:600;background:var(--surface-2)}
+tbody th{font-weight:600}
+tbody tr:nth-child(even){background:color-mix(in srgb,var(--surface-2) 60%,transparent)}
+tbody tr:hover{background:var(--accent-soft)}
+img,svg,video{max-width:100%;height:auto}
+img{background:var(--img-bg)}
+a{color:var(--accent)}
+pre,code,samp,kbd{font-family:var(--mono);font-size:12.8px;font-variant-ligatures:none}
+pre{white-space:pre-wrap;margin:0}
+h1,h2,h3,h4{line-height:1.3}
+iframe{border:1px solid var(--border);border-radius:6px;max-width:100%}
+`;
+function htmlOutput(body, html) {
+  body.classList.add('html-out');
+  const sh = body.attachShadow({ mode: 'open' });
+  const style = document.createElement('style'); style.textContent = SHADOW_CSS;
+  const root = el('div', 'root');
+  sanitizeInto(root, html, true);
+  for (const a of $$('a[href]', root)) if (!a.getAttribute('href').startsWith('#')) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+  for (const img of $$('img', root)) img.addEventListener('error', () => { img.style.display = 'none'; }, { once: true });
+  sh.append(style, root);
+}
+const IMG_MIMES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'];
+const IGNORED_MIMES = new Set(['application/vnd.colab-display-data+json', 'application/vnd.google.colaboratory.intrinsic+json', 'application/vnd.jupyter.widget-state+json']);
+function note(body, text) { body.append(el('div', 'note', esc(text))); }
+function imgOutput(body, srcUrl, meta) {
+  body.classList.add('img-out');
+  const img = document.createElement('img');
+  img.src = srcUrl; img.alt = 'output image'; img.loading = 'lazy';
+  if (meta && meta.width) img.width = meta.width;
+  if (meta && meta.height) img.height = meta.height;
+  body.append(img);
+}
+function renderMime(body, data, meta) {
+  const has = k => data[k] != null;
+  const textFallback = has('text/plain');
+  const anyImg = IMG_MIMES.find(has);
+  if (has('text/html')) {
+    const html = joinSrc(data['text/html']);
+    const scripted = new RegExp('<' + 'script', 'i').test(html);
+    if (scripted && (anyImg || has('image/svg+xml'))) { /* prefer static image below */ }
+    else {
+      htmlOutput(body, html);
+      if (scripted) note(body, 'This output uses JavaScript (e.g. Plotly, Bokeh, widgets). Scripts are not run in this offline viewer.');
+      return;
+    }
+  }
+  if (has('image/svg+xml')) { imgOutput(body, 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(joinSrc(data['image/svg+xml'])), meta['image/svg+xml']); return; }
+  if (anyImg) { imgOutput(body, `data:${anyImg};base64,${joinSrc(data[anyImg]).replace(/\s+/g, '')}`, meta[anyImg] || meta); return; }
+  if (has('text/markdown')) { const d = el('div', 'md'); renderMarkdownInto(d, joinSrc(data['text/markdown']), { ids: new Set() }); body.append(d); return; }
+  if (has('text/latex')) { const d = el('div'); d.innerHTML = mathDisplay(joinSrc(data['text/latex']).replace(/^\s*\$\$?|\$\$?\s*$/g, '')); body.append(d); return; }
+  if (has('application/json')) { const v = data['application/json']; body.append(consoleBlock(typeof v === 'string' ? v : JSON.stringify(v, null, 2))); return; }
+  if (textFallback) {
+    body.append(consoleBlock(joinSrc(data['text/plain'])));
+    if (has('application/vnd.jupyter.widget-view+json')) note(body, 'Interactive widget (static text fallback shown)');
+    return;
+  }
+  if (has('application/vnd.jupyter.widget-view+json')) { note(body, 'Interactive widget (not available in offline view)'); return; }
+  if (has('application/javascript')) {
+    const d = el('details', 'js-out'); d.append(el('summary', null, 'JavaScript output (not executed)'));
+    const p = el('pre', 'ansi'); p.textContent = joinSrc(data['application/javascript']); d.append(p); body.append(d); return;
+  }
+  const other = Object.keys(data).filter(k => !IGNORED_MIMES.has(k));
+  if (other.length) note(body, 'Unsupported output type: ' + other.join(', '));
+}
+function renderOutput(o) {
+  const body = el('div', 'output');
+  switch (o.output_type) {
+    case 'stream':
+      if (!o.text) return null;
+      body.classList.add('stream', o.name === 'stderr' ? 'stderr' : 'stdout');
+      body.append(consoleBlock(o.text));
+      break;
+    case 'error': {
+      body.classList.add('error');
+      const tb = Array.isArray(o.traceback) && o.traceback.length ? o.traceback.join('\n') : `${o.ename || 'Error'}: ${o.evalue || ''}`;
+      body.append(consoleBlock(tb));
+      break;
+    }
+    case 'execute_result': case 'display_data': case 'update_display_data':
+      renderMime(body, o.data || {}, o.metadata || {});
+      break;
+    default:
+      note(body, `Unknown output type: ${o.output_type}`);
+  }
+  return body.childNodes.length || body.shadowRoot ? body : null;
+}
+
+/* ================= cell rendering ================= */
+function codeBlock(code, lang) {
+  const wrap = el('div', 'code');
+  const n = countLines(code) + 1;
+  const g = el('div', 'gutter'); g.setAttribute('aria-hidden', 'true');
+  let nums = ''; for (let k = 1; k <= n; k++) nums += k + (k < n ? '\n' : '');
+  g.textContent = nums;
+  const pre = el('pre', 'src'); const c = el('code');
+  c.innerHTML = highlight(code, lang);
+  pre.append(c); wrap.append(g, pre);
+  return wrap;
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); return true; }
+  catch (e) {
+    const ta = el('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0'; document.body.append(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (_) {} ta.remove(); return ok;
+  }
+}
+function firstLine(code) {
+  let fallback = '';
+  for (const l of code.split('\n')) {
+    const t = l.trim(); if (!t) continue;
+    if (!fallback) fallback = t;
+    if (/[\p{L}\p{N}]/u.test(t)) return t.replace(/^#+\s*/, '').slice(0, 90) || t.slice(0, 90);
+  }
+  return fallback ? fallback.slice(0, 90) : '(empty)';
+}
+function hiddenBar(text, onClick) {
+  const b = el('button', 'hidden-bar'); b.type = 'button';
+  b.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>${esc(text)}`;
+  b.onclick = onClick; return b;
+}
+function renderCell(doc, c, idx) {
+  const type = c.cell_type || 'code';
+  const md = c.metadata || {};
+  const jmd = md.jupyter || {};
+  const cell = el('section', 'cell cell-' + type);
+  cell.id = 'cell-' + (idx + 1);
+  const source = joinSrc(c.source);
+
+  if (type === 'markdown') {
+    const row = el('div', 'row');
+    const body = el('div', 'md');
+    renderMarkdownInto(body, source, { attachments: c.attachments, ids: doc.ids });
+    row.append(el('div', 'prompt'), body);
+    cell.append(row);
+    for (const h of $$('h1,h2,h3,h4,h5,h6', body)) doc.toc.push({ level: +h.tagName[1], text: h.dataset.text, target: h, cell });
+    return cell;
+  }
+  if (type === 'raw') {
+    const row = el('div', 'row'); const pre = el('pre', 'raw'); pre.textContent = source;
+    row.append(el('div', 'prompt'), pre); cell.append(row); return cell;
+  }
+
+  // code cell
+  const n = c.execution_count;
+  const input = el('div', 'row input');
+  const prompt = el('div', 'prompt in-prompt'); prompt.textContent = `[${n != null ? n : ' '}]:`;
+  const box = el('div', 'code-box');
+  const title = source.match(/^[ \t]*#[ \t]*@title[ \t]+(.+?)[ \t]*(?:\{.*\})?[ \t]*$/m);
+  if (title) box.append(el('div', 'form-title', esc(title[1])));
+  box.append(codeBlock(source, doc.lang));
+  const badge = el('div', 'n-badge'); badge.textContent = `[${n != null ? n : ' '}]`; box.append(badge);
+  const copy = el('button', 'copy-btn', 'Copy'); copy.type = 'button';
+  copy.onclick = async () => { copy.textContent = (await copyText(source)) ? 'Copied' : 'Failed'; setTimeout(() => (copy.textContent = 'Copy'), 1300); };
+  box.append(copy);
+  const inCol = el('button', 'collapser'); inCol.type = 'button'; inCol.title = 'Collapse / expand code';
+  inCol.onclick = () => input.classList.toggle('collapsed');
+  const inWrap = el('div'); inWrap.style.minWidth = '0';
+  inWrap.append(box, hiddenBar(`Code hidden (${countLines(source) + 1} lines). Click to show`, () => input.classList.remove('collapsed')));
+  input.append(prompt, inWrap, inCol);
+  if (jmd.source_hidden) input.classList.add('collapsed');
+  cell.append(input);
+  doc.toc.push({ level: 0, code: true, n, text: title ? title[1] : firstLine(source), target: cell, cell });
+
+  const outs = mergeStreams(Array.isArray(c.outputs) ? c.outputs : []);
+  if (outs.length) {
+    const oa = el('div', 'outputs');
+    let count = 0;
+    for (const o of outs) {
+      let body;
+      try { body = renderOutput(o); } catch (err) { body = el('div', 'output'); note(body, 'Failed to render output: ' + err.message); }
+      if (!body) continue;
+      const row = el('div', 'row out-row');
+      const p = el('div', 'prompt out-prompt');
+      if (o.output_type === 'execute_result' && o.execution_count != null) p.textContent = `[${o.execution_count}]:`;
+      p.title = 'Click to toggle output height limit';
+      p.onclick = () => oa.classList.toggle('unlimited');
+      row.append(p, body); oa.append(row); count++;
+    }
+    if (count) {
+      const hid = el('div', 'row out-hidden');
+      hid.append(el('div', 'prompt'), hiddenBar(`Output hidden (${count} item${count > 1 ? 's' : ''}). Click to show`, () => oa.classList.remove('collapsed')));
+      const col = el('button', 'collapser'); col.type = 'button'; col.title = 'Collapse / expand output';
+      col.onclick = () => oa.classList.toggle('collapsed');
+      oa.append(hid, col);
+      if (jmd.outputs_hidden || md.collapsed === true) oa.classList.add('collapsed');
+      cell.append(oa);
+    }
+  }
+  return cell;
+}
+
+/* ================= app state & UI ================= */
+const state = { docs: [], active: null, seq: 0 };
+const defaults = { code: true, out: true, ln: false, wrap: true, limit: true, theme: 'auto', sidebar: true };
+let prefs = Object.assign({}, defaults);
+try { Object.assign(prefs, JSON.parse(store.get('prefs') || '{}')); } catch (e) {}
+const savePrefs = () => store.set('prefs', JSON.stringify(prefs));
+
+function applyPrefs() {
+  const b = document.body.classList;
+  b.toggle('hide-code', !prefs.code); b.toggle('hide-out', !prefs.out); b.toggle('ln', prefs.ln);
+  b.toggle('nowrap', !prefs.wrap); b.toggle('limit', prefs.limit); b.toggle('no-sidebar', !prefs.sidebar);
+  if (prefs.theme === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = prefs.theme;
+  for (const cb of $$('[data-pref]')) cb.checked = !!prefs[cb.dataset.pref];
+  for (const btn of $$('#themeSeg button')) btn.classList.toggle('on', btn.dataset.theme === prefs.theme);
+}
+
+let toastTimer;
+function toast(msg, kind) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'on' + (kind ? ' ' + kind : '');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.className = kind || ''), kind === 'error' ? 6000 : 2500);
+}
+function busy(msg) { $('#busy').classList.toggle('on', !!msg); if (msg) $('#busyText').textContent = msg; }
+
+function renderTabs() {
+  const tabs = $('#tabs'); tabs.innerHTML = '';
+  for (const d of state.docs) {
+    const t = el('button', 'tab' + (d === state.active ? ' active' : ''));
+    t.type = 'button'; t.title = d.name;
+    t.innerHTML = `<span class="tname">${esc(d.name)}</span><span class="tclose" role="button" aria-label="Close ${esc(d.name)}" title="Close">✕</span>`;
+    t.onclick = e => { if (e.target.closest('.tclose')) closeDoc(d); else activate(d); };
+    t.onauxclick = e => { if (e.button === 1) closeDoc(d); };
+    tabs.append(t);
+  }
+  const a = tabs.querySelector('.active'); if (a) a.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+function renderToc() {
+  const toc = $('#toc'); toc.innerHTML = '';
+  const d = state.active; if (!d) return;
+  const q = $('#tocFilter').value.trim().toLowerCase();
+  const heads = d.toc.filter(t => !t.code);
+  const minLv = heads.length ? Math.min(...heads.map(t => t.level)) : 1;
+  const frag = document.createDocumentFragment();
+  let shown = 0;
+  for (const t of d.toc) {
+    t.a = null;
+    if (q && t.text.toLowerCase().indexOf(q) === -1) continue;
+    const a = el('a', 'toc-item ' + (t.code ? 'toc-code' : 'toc-h'));
+    a.href = '#' + (t.target.id || '');
+    if (t.code) a.innerHTML = `<span class="toc-n">[${t.n != null ? t.n : ' '}]</span><span class="toc-t">${esc(t.text)}</span>`;
+    else { a.innerHTML = `<span class="toc-t">${esc(t.text)}</span>`; a.style.paddingLeft = (8 + (t.level - minLv) * 14) + 'px'; if (t.level > minLv) a.style.fontWeight = '450'; }
+    a.onclick = e => { e.preventDefault(); goTo(t); if (window.innerWidth <= 900) document.body.classList.remove('side-open'); };
+    t.a = a; frag.append(a); shown++;
+  }
+  if (!shown) toc.append(el('div', 'toc-empty', q ? 'No matches' : 'No cells yet'));
+  toc.append(frag);
+  spy();
+}
+function goTo(t) {
+  t.target.scrollIntoView({ block: 'start' });
+  requestAnimationFrame(() => requestAnimationFrame(() => t.target.scrollIntoView({ block: 'start' })));
+  t.cell.classList.remove('flash'); void t.cell.offsetWidth; t.cell.classList.add('flash');
+}
+let spyQueued = false;
+function spy() {
+  if (spyQueued) return; spyQueued = true;
+  requestAnimationFrame(() => {
+    spyQueued = false;
+    const d = state.active; if (!d || !d.cells.length) return;
+    const cells = d.cellEls; const top = 70;
+    let lo = 0, hi = cells.length - 1, ans = cells.length - 1;
+    while (lo <= hi) { const mid = (lo + hi) >> 1; if (cells[mid].getBoundingClientRect().bottom > top) { ans = mid; hi = mid - 1; } else lo = mid + 1; }
+    const activeCell = cells[ans];
+    let best = null;
+    for (const t of d.toc) {
+      if (!t.a) continue;
+      const ci = d.cellIndex.get(t.cell);
+      if (ci > ans) break;
+      if (!t.code && t.cell === activeCell && t.target.getBoundingClientRect().top > window.innerHeight * .6 && best) break;
+      best = t;
+    }
+    for (const a of $$('.toc-item.active')) if (!best || a !== best.a) a.classList.remove('active');
+    if (best && best.a && !best.a.classList.contains('active')) {
+      best.a.classList.add('active');
+      const box = $('#toc'), r = best.a.getBoundingClientRect(), br = box.getBoundingClientRect();
+      if (r.top < br.top || r.bottom > br.bottom) best.a.scrollIntoView({ block: 'nearest' });
+    }
+  });
+}
+
+function docHeader(d) {
+  const h = el('header', 'nb-head');
+  const t = el('h1', 'nb-title'); t.textContent = d.name.replace(/\.ipynb$/i, ''); h.append(t);
+  const chips = el('div', 'chips');
+  const m = d.meta, li = m.language_info || {}, ks = m.kernelspec || {};
+  const counts = { code: 0, markdown: 0, raw: 0 };
+  for (const c of d.cells) counts[c.cell_type] = (counts[c.cell_type] || 0) + 1;
+  const add = html => chips.append(el('span', 'chip', html));
+  if (ks.display_name || ks.name) add(`Kernel <b>${esc(ks.display_name || ks.name)}</b>`);
+  if (li.name) add(`${esc(li.name)}${li.version ? ' ' + esc(li.version) : ''}`);
+  add(`<b>${counts.code}</b> code · <b>${counts.markdown}</b> markdown${counts.raw ? ` · <b>${counts.raw}</b> raw` : ''}`);
+  add(fmtBytes(d.size));
+  add(`nbformat ${esc(d.nbformat)}`);
+  if (m.colab) add('Colab');
+  if (m.kaggle) add('Kaggle');
+  h.append(chips);
+  d.progress = el('div', 'progress'); d.progress.innerHTML = '<div class="spin"></div><span>Rendering…</span>';
+  h.append(d.progress);
+  return h;
+}
+
+async function renderNotebook(d) {
+  d.root.append(docHeader(d));
+  const wrap = el('div', 'cells'); d.root.append(wrap);
+  let t0 = performance.now(), lastToc = 0;
+  for (let i = 0; i < d.cells.length; i++) {
+    if (d.closed) return;
+    let node;
+    try { node = renderCell(d, d.cells[i], i); }
+    catch (err) { console.error(err); node = el('section', 'cell'); const r = el('div', 'row'); r.append(el('div', 'prompt'), el('div', 'cell-error', esc(`Cell ${i + 1} could not be rendered: ${err.message}`))); node.append(r); }
+    wrap.append(node); d.cellEls.push(node); d.cellIndex.set(node, i);
+    if (performance.now() - t0 > 35) {
+      d.progress.lastChild.textContent = `Rendering cell ${i + 1} of ${d.cells.length}…`;
+      if (state.active === d && performance.now() - lastToc > 400) { renderToc(); lastToc = performance.now(); }
+      await tick(); t0 = performance.now();
+    }
+  }
+  d.progress.remove();
+  if (!d.cells.length) wrap.append(el('p', 'note', 'This notebook has no cells.'));
+  if (state.active === d) renderToc();
+}
+
+function activate(d) {
+  if (state.active && state.active !== d) state.active.scrollY = window.scrollY;
+  state.active = d;
+  const docs = $('#docs');
+  docs.replaceChildren(d ? d.root : '');
+  document.body.classList.toggle('empty', !d);
+  document.title = d ? `${d.name}: Notebook Viewer` : 'Notebook Viewer';
+  renderTabs(); renderToc();
+  window.scrollTo(0, d && d.scrollY ? d.scrollY : 0);
+}
+function closeDoc(d) {
+  const i = state.docs.indexOf(d); if (i === -1) return;
+  d.closed = true; state.docs.splice(i, 1);
+  if (state.active === d) { state.active = null; activate(state.docs[Math.min(i, state.docs.length - 1)] || null); }
+  else renderTabs();
+}
+
+async function openText(name, text, size) {
+  let nb;
+  try { nb = JSON.parse(text); } catch (e) { throw new Error('the file is not valid JSON'); }
+  const norm = normalize(nb);
+  const d = Object.assign({ id: ++state.seq, name, size: size != null ? size : text.length, toc: [], cellEls: [], cellIndex: new Map(), ids: new Set(), root: el('article', 'nb') }, norm);
+  state.docs.push(d);
+  activate(d);
+  await renderNotebook(d);
+  return d;
+}
+async function openFiles(files) {
+  for (const f of Array.from(files)) {
+    const dup = state.docs.find(d => d.name === f.name && d.size === f.size);
+    if (dup) { activate(dup); continue; }
+    try {
+      busy(`Opening ${f.name} (${fmtBytes(f.size)})…`);
+      await tick();
+      const text = await f.text();
+      await new Promise(r => setTimeout(r, 16));
+      const p = openText(f.name, text, f.size);
+      busy(null);
+      await p;
+    } catch (e) {
+      console.error(e); toast(`Couldn't open ${f.name}: ${e.message}`, 'error');
+    } finally { busy(null); }
+  }
+}
+
+/* ================= events ================= */
+const fileInput = $('#fileInput');
+const pick = () => fileInput.click();
+$('#btnOpen').onclick = pick;
+$('#btnOpen2').onclick = e => { e.stopPropagation(); pick(); };
+$('#dropCard').onclick = pick;
+$('#dropCard').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };
+fileInput.onchange = () => { if (fileInput.files.length) openFiles(fileInput.files).then(() => (fileInput.value = '')); };
+
+$('#btnSide').onclick = () => {
+  if (window.innerWidth <= 900) document.body.classList.toggle('side-open');
+  else { prefs.sidebar = !prefs.sidebar; savePrefs(); applyPrefs(); }
+};
+$('#tocFilter').oninput = renderToc;
+
+for (const cb of $$('[data-pref]')) cb.onchange = () => { prefs[cb.dataset.pref] = cb.checked; savePrefs(); applyPrefs(); };
+for (const b of $$('#themeSeg button')) b.onclick = () => { prefs.theme = b.dataset.theme; savePrefs(); applyPrefs(); };
+for (const b of $$('[data-act]')) b.onclick = () => {
+  const act = b.dataset.act;
+  if (act === 'print') { $('#viewMenu').open = false; setTimeout(() => window.print(), 50); return; }
+  if (state.active) for (const o of $$('.outputs', state.active.root)) o.classList.toggle('collapsed', act === 'collapse');
+};
+document.addEventListener('click', e => { const m = $('#viewMenu'); if (m.open && !m.contains(e.target)) m.open = false; });
+
+let dragDepth = 0;
+const hasFiles = e => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+window.addEventListener('dragenter', e => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth++; $('#drop').classList.add('on'); });
+window.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener('dragleave', e => { if (!hasFiles(e)) return; if (--dragDepth <= 0) { dragDepth = 0; $('#drop').classList.remove('on'); } });
+window.addEventListener('drop', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); dragDepth = 0; $('#drop').classList.remove('on');
+  if (e.dataTransfer.files.length) openFiles(e.dataTransfer.files);
+});
+
+window.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'o') { e.preventDefault(); pick(); }
+  if (e.key === 'Escape') { $('#viewMenu').open = false; $('#lightbox').classList.remove('on'); document.body.classList.remove('side-open'); }
+});
+window.addEventListener('scroll', spy, { passive: true });
+window.addEventListener('resize', spy, { passive: true });
+
+$('#docs').addEventListener('click', e => {
+  const img = e.target.closest('.img-out img'); if (!img) return;
+  const lb = $('#lightbox'); lb.querySelector('img').src = img.src; lb.classList.add('on');
+});
+$('#lightbox').onclick = () => $('#lightbox').classList.remove('on');
+
+applyPrefs();
+
+// Small programmatic API (handy for scripting/tests): NotebookViewer.openText(name, jsonString)
+window.NotebookViewer = { openText: (name, text) => openText(name, text) };
+})();
+</script>
+</body>
+</html>
